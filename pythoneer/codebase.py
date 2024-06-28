@@ -43,6 +43,18 @@ class Codebase:
         """Edit the contents of a source file in the codebase."""
         self.files[relative_file_path].update_contents(contents)
 
+    def formatted_relative_file_paths(self) -> str:
+        """Return a formatted string of all relative file paths in the codebase."""
+        relative_file_paths_w_bullets = [
+            f"* {relative_file_path}"
+            for relative_file_path in self._get_relative_file_paths()
+        ]
+        return "\n".join(relative_file_paths_w_bullets)
+
+    def _get_relative_file_paths(self) -> list[str]:
+        """Return a list of all relative file paths in the codebase."""
+        return list(self.files.keys())
+
 
 class SourceFile:
     """Class to represent a source file in a codebase."""
