@@ -2,25 +2,63 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-
 
 class MessageLog:
     """Class to represent a log of messages."""
 
-    def create_messages(summarise_after: int | None = None):
-        pass
+    def __init__(self):
+        self.messages: list[AssistantMessage | UserMessage] = []
+
+    def add_message(self, message: AssistantMessage | UserMessage):
+        """Add a message to the log."""
+        self.messages.append(message)
+
+    def return_messages_list(self, summarise_before_last: int | None = None):
+        """
+        Return a list of json-formatted messages.
+
+        This is the input for the 'messages' parameter of Anthropic's language model
+        messages API. The messages alternate between user and assistant messages.
+
+        Parameters
+        ----------
+        summarise_before_last : int | None
+            Summarise the tool arguments (for assistant messages) and observations (for
+            user messages) for all messages except the last `summarise_before_last`.
+            If None, summarise no messages.
+
+        Returns
+        -------
+        messages_list : list[dict]
+            A list of json-formatted messages.
+        """
+        num_messages = len(self.messages)
+        if summarise_before_last is None:
+            summarise_until = 0
+        else:
+            summarise_until = num_messages - summarise_before_last
+
+        messages_list = []
+
+        for num, message in enumerate(self.messages):
+            if num >= summarise_until:
+                summarised = False
+            else:
+                summarised = True
+
+            if isinstance(message, AssistantMessage):
+                json_message = message.return_json_message(summarised=summarised)
+            elif isinstance(message, UserMessage):
+                json_message = message.return_json_message(
+                    summarised=summarised, include_review_comment=True
+                )
+
+            messages_list.append(json_message)
+
+        return messages_list
 
 
-class Message(ABC):
-    """Abstract class to represent a message."""
-
-    @abstractmethod
-    def return_json_message(self) -> dict:
-        pass
-
-
-class AssistantMessage(Message):
+class AssistantMessage:
     """Class to represent a message from the assistant."""
 
     ROLE = "assistant"
@@ -109,7 +147,7 @@ class AssistantMessage(Message):
         return message
 
 
-class UserMessage(Message):
+class UserMessage:
     """Class to represent a tool result message from the user."""
 
     ROLE = "user"
