@@ -1,20 +1,115 @@
 """Messages from the user and the agent."""
 
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+
 
 class MessageLog:
     """Class to represent a log of messages."""
 
-    pass
+    def create_messages(summarise_after: int | None = None):
+        pass
 
 
-class AssistantMessage:
+class Message(ABC):
+    """Abstract class to represent a message."""
+
+    @abstractmethod
+    def return_json_message(self) -> dict:
+        pass
+
+
+class AssistantMessage(Message):
     """Class to represent a message from the assistant."""
 
     ROLE = "assistant"
-    ...
+
+    def __init__(
+        self,
+        thought: str,
+        tool_id: str,
+        tool_name: str,
+        tool_arguments: dict,
+    ):
+        """
+        Initalise the AssistantMessage object.
+
+        Parameters
+        ----------
+        thought : str
+            The language model's reasoning.
+
+        tool_id : str
+
+        tool_name : str
+
+        tool_arguments : dict
+        """
+        self.thought = thought
+        self.tool_id = tool_id
+        self.tool_name = tool_name
+        self.tool_arguments = tool_arguments
+        self.summarised_tool_arguments = self.create_summarised_tool_arguments(
+            tool_name, tool_arguments
+        )
+
+    def create_summarised_tool_arguments(self, tool_name, tool_arguments) -> dict:
+        if tool_name == "edit":
+            summarised_tool_arguments = {
+                "commit_message": tool_arguments["commit_message"],
+                "new_contents": (
+                    "The full, updated contents of the file. Not shown here for brevity."
+                ),
+            }
+        else:
+            summarised_tool_arguments = tool_arguments
+
+        return summarised_tool_arguments
+
+    def return_json_message(self, summarised: bool = False) -> dict:
+        """
+        Return the message as a JSON serialisable dictionary.
+
+        This is the format that the message will be passed to the language model in.
+
+        Parameters
+        ----------
+        summarised : bool
+            Whether to include the full tool arguments or a summarised version.
+
+        Returns
+        -------
+        message : dict
+            The message as a JSON serialisable dictionary.
+        """
+        if summarised:
+            tool_arguments = self.summarised_tool_arguments
+        else:
+            tool_arguments = self.tool_arguments
+
+        content = [
+            {
+                "type": "text",
+                "text": self.thought,
+            },
+            {
+                "type": "tool_use",
+                "id": self.tool_id,
+                "name": self.tool_name,
+                "inputs": tool_arguments,
+            },
+        ]
+
+        message = {
+            "role": self.ROLE,
+            "content": content,
+        }
+
+        return message
 
 
-class UserMessage:
+class UserMessage(Message):
     """Class to represent a tool result message from the user."""
 
     ROLE = "user"
