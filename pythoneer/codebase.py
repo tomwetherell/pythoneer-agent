@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 
@@ -74,6 +75,13 @@ class Codebase:
             raise ValueError(f"Output path '{output_path}' does not exist.")
 
         codebase_path = output_path / "codebase"
+
+        # Remove the codebase directory if it exists
+        if codebase_path.exists():
+            shutil.rmtree(codebase_path)
+
+        # Recreate the codebase directory
+        codebase_path.mkdir(parents=True, exist_ok=True)
 
         for source_file in self.files.values():
             file_path = codebase_path / source_file.relative_file_path
