@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+from pythoneer.agent import Agent
 from pythoneer.tools.observations import Observation
 from pythoneer.tools.base import Tool, Parameter
 from pythoneer.tools.factory import ToolFactory
@@ -30,7 +31,7 @@ class OpenFileTool(Tool):
     ]
 
     def _validate_argument_values(self):
-        """Validate the provided arguments."""
+        """Check that the file exists in the codebase."""
         file_path = self.arguments["file_path"]
 
         if file_path not in self.agent.codebase.get_relative_file_paths:
@@ -80,7 +81,7 @@ class EditFileTool(Tool):
             ),
         ),
         Parameter(
-            name="new_contents",
+            name="new_file_contents",
             type="str",
             description=(
                 "The new contents of the file. This should be the full, updated contents of the file. "
@@ -90,6 +91,59 @@ class EditFileTool(Tool):
         ),
     ]
 
+    def _validate_argument_values(self, agent: Agent):
+        """TODO: Run linter on the new contents of the file."""
+        pass
+
+    def _use(self, agent: Agent) -> Observation:
+        """Edit the file open in the file editor."""
+        commit_message = self.arguments["commit_message"]
+        new_contents = self.arguments["new_file_contents"]
+        file_path = agent.open_file_relative_path
+
+        agent.codebase.edit_file(file_path, new_contents)
+
+        observation_description = (
+            f"Edited the file '{file_path}'.\nCommit message: {commit_message}"
+            f"New contents of {file_path}: \n```python\n{new_contents}\n```"
+        )
+
+        summarised_observation_description = (
+            f"Edited the file '{file_path}'.\nCommit message: {commit_message}"
+        )
+
+        observation = Observation(
+            observation_description=observation_description,
+            summarised_observation_description=summarised_observation_description,
+            file_viewer_changed=True,
+            file_viewer_new_content=new_contents,
+        )
+
+        return observation
+
+
+class CompleteTaskTool(Tool):
+    """Tool to declare the task as complete."""
+
+    NAME = "complete_task"
+    DESCRIPTION = "Declare the task you are working on as complete."
+    PARAMETERS = []
+
+    def _use(self, agent: Agent) -> Observation:
+        """Complete the task."""
+        agent.task_completed = True
+
+        observation_description = "Task completed."
+        summarised_observation_description = "Task completed."
+
+        observation = Observation(
+            observation_description=observation_description,
+            summarised_observation_description=summarised_observation_description,
+        )
+
+        return observation
+
 
 ToolFactory.register_tool(OpenFileTool)
 ToolFactory.register_tool(EditFileTool)
+ToolFactory.register_tool(CompleteTaskTool)
