@@ -54,6 +54,32 @@ class Codebase:
         """Return a list of all relative file paths in the codebase."""
         return list(self.files.keys())
 
+    def write_codebase_to_disk(self, output_path: str | Path):
+        """
+        Write the codebase to disk.
+
+        Writes the codebase to a new directory at the specified output path. The directory
+        structure of the codebase is preserved.
+
+        Parameters
+        ----------
+        output_path : str | Path
+            Full path to the directory to write the codebase to. A subdirectory called
+            'codebase' will be created within this directory to contain the codebase.
+        """
+        output_path = Path(output_path)
+
+        # Check if the output path exists
+        if not output_path.exists():
+            raise ValueError(f"Output path '{output_path}' does not exist.")
+
+        codebase_path = output_path / "codebase"
+
+        for source_file in self.files.values():
+            file_path = codebase_path / source_file.relative_file_path
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.write_text(source_file.contents)
+
 
 class SourceFile:
     """Class to represent a source file in a codebase."""
