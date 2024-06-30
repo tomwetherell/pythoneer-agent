@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
+
 
 class MessageLog:
     """Class to represent a log of messages."""
 
     def __init__(self):
-        self.messages: list[AssistantMessage | UserMessage] = []
+        self.messages: list[Message] = []
 
-    def add_message(self, message: AssistantMessage | UserMessage):
+    def add_message(self, message: Message):
         """Add a message to the log."""
         self.messages.append(message)
 
@@ -46,19 +48,75 @@ class MessageLog:
             else:
                 summarised = True
 
-            if isinstance(message, AssistantMessage):
+            if isinstance(message, InstanceMessage):
+                json_message = message.return_json_message()
+            elif isinstance(message, AssistantMessage):
                 json_message = message.return_json_message(summarised=summarised)
             elif isinstance(message, UserMessage):
                 json_message = message.return_json_message(
                     summarised=summarised, include_review_comment=True
                 )
+            else:
+                raise ValueError("Message type not recognised.")
 
             messages_list.append(json_message)
 
         return messages_list
 
 
-class AssistantMessage:
+class Message(ABC):
+    """Abstract base class for messages."""
+
+    @abstractmethod
+    def return_json_message(self) -> dict:
+        """Return the message as a JSON serialisable dictionary."""
+        pass
+
+
+class InstanceMessage(Message):
+    """Class to represent the message that describes the task."""
+
+    ROLE = "user"
+
+    def __init__(self, instance_prompt: str):
+        """
+        Initalise the InstanceMessage object.
+
+        Parameters
+        ----------
+        instance_prompt : str
+            The prompt that describes the task.
+        """
+        self.instance_prompt = instance_prompt
+
+    def return_json_message(self) -> dict:
+        """
+        Return the message as a JSON serialisable dictionary.
+
+        This is the format that the message will be passed to the language model in.
+
+        Returns
+        -------
+        message : dict
+            The message as a JSON serialisable dictionary.
+        """
+        content = [
+            {
+                "type": "text",
+                "text": self.instance_prompt,
+            }
+        ]
+
+        message = {
+            "role": self.ROLE,
+            "content": content,
+        }
+
+        return message
+
+
+# Rename to tool use assistant message?
+class AssistantMessage(Message):
     """Class to represent a message from the assistant."""
 
     ROLE = "assistant"
@@ -147,7 +205,8 @@ class AssistantMessage:
         return message
 
 
-class UserMessage:
+# Rename to tool result user message?
+class UserMessage(Message):
     """Class to represent a tool result message from the user."""
 
     ROLE = "user"
