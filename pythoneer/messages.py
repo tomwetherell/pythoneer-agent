@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import yaml
 from abc import ABC, abstractmethod
+
+from pythoneer.paths import PY2_TO_PY3_PROMPT_PATH
 
 
 class MessageLog:
@@ -151,10 +154,28 @@ class AssistantMessage(Message):
         )
 
     def create_summarised_tool_arguments(self, tool_name, tool_arguments) -> dict:
-        if tool_name == "edit":
+        """
+        Create a summarised version of the tool arguments.
+
+        For example, when editing a file, the full contents of the file are not shown.
+
+        Parameters
+        ----------
+        tool_name : str
+            The name of the tool.
+
+        tool_arguments : dict
+            The full tool arguments.
+
+        Returns
+        -------
+        summarised_tool_arguments : dict
+            A summarised version of the tool arguments.
+        """
+        if tool_name == "edit_file":
             summarised_tool_arguments = {
                 "commit_message": tool_arguments["commit_message"],
-                "new_contents": (
+                "new_file_contents": (
                     "The full, updated contents of the file. Not shown here for brevity."
                 ),
             }
@@ -285,7 +306,17 @@ class UserMessage(Message):
                 }
             )
 
-        # TODO: Add a content block to encourage the agent to take the next step.
+        # TODO: Make this configurable
+        with open(PY2_TO_PY3_PROMPT_PATH, "r") as fh:
+            prompts = yaml.safe_load(fh)
+        next_step_prompt = prompts["next_step_prompt"]
+
+        content.append(
+            {
+                "type": "text",
+                "text": next_step_prompt,
+            }
+        )
 
         message = {
             "role": self.ROLE,
