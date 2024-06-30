@@ -53,14 +53,11 @@ class Tool(ABC):
             )
 
         self.arguments = kwargs
-        # TODO: Maybe this should be done within the `use` method, so the error can be
-        # handled by the agent. It might also make sense to add validate_argument_values
-        # into validate_arguments.
-        self.validate_arguments()
 
-    def validate_arguments(self):
+    def validate_arguments(self, agent: Agent):
         """Validate the provided arguments."""
         self._validate_all_parameters_present()
+        self._validate_argument_values(agent)
         self._validate_argument_types()
         self._warn_unused_arguments()
 
@@ -77,9 +74,14 @@ class Tool(ABC):
         -------
         observation : Observation
             An observation after using the tool.
+
+        Raises
+        ------
+        ValueError
+            If the arguments are invalid (e.g., missing, wrong type, etc.)
         """
         try:
-            self._validate_argument_values()
+            self.self.validate_arguments()
         except ValueError as exc:
             # TODO: Create ErrorObservation for this.
             observation = Observation(step=self.step, description=str(exc))
@@ -87,20 +89,6 @@ class Tool(ABC):
             observation = self._use(agent)
 
         return observation
-
-    def _validate_argument_values(self):
-        """
-        Validate the values of the arguments.
-
-        This method can be overridden by subclasses to provide custom validation.
-
-        Raises
-        ------
-        ValueError
-            If the arguments are invalid. The message should contain enough information
-            to help the agent correct the issue.
-        """
-        pass
 
     @abstractmethod
     def _use(self, agent) -> Observation:
@@ -134,9 +122,7 @@ class Tool(ABC):
                 "description": parameter.description,
             }
 
-        required = [
-            parameter.name for parameter in cls.PARAMETERS if parameter.required
-        ]
+        required = [parameter.name for parameter in cls.PARAMETERS if parameter.required]
 
         description = {
             "name": cls.NAME,
@@ -149,6 +135,25 @@ class Tool(ABC):
         }
 
         return description
+
+    def _validate_argument_values(self, agent: Agent):
+        """
+        Validate the values of the arguments.
+
+        This method can be overridden by subclasses to provide custom validation.
+
+        Parameters
+        ----------
+        agent : Agent
+            The agent using the tool.
+
+        Raises
+        ------
+        ValueError
+            If the arguments are invalid. The message should contain enough information
+            to help the agent correct the issue.
+        """
+        pass
 
     def _validate_all_parameters_present(self):
         """Validate that all required parameters are present."""
@@ -176,6 +181,4 @@ class Tool(ABC):
         """Warn if any arguments are not used."""
         for argument in self.arguments:
             if argument not in [parameter.name for parameter in self.PARAMETERS]:
-                logger.warning(
-                    f"Unused argument: '{argument}' provided to '{self.NAME}' tool."
-                )
+                logger.warning(f"Unused argument: '{argument}' provided to '{self.NAME}' tool.")
