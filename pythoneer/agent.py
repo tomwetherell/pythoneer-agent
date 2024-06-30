@@ -4,6 +4,7 @@ import yaml
 from pathlib import Path
 
 import anthropic
+from loguru import logger
 
 from pythoneer.codebase import Codebase
 from pythoneer.messages import MessageLog, InstanceMessage, AssistantMessage, UserMessage
@@ -12,8 +13,12 @@ from pythoneer.tools.factory import ToolFactory
 from pythoneer.tools.tools import OpenFileTool, EditFileTool, CompleteTaskTool
 from pythoneer.paths import PY2_TO_PY3_PROMPT_PATH
 
-MODEL = "claude-3-haiku-20240307"
-"""Anthropic language model to use."""
+MODEL = "claude-3-sonnet-20240229"
+"""
+Anthropic language model to use.
+
+See https://docs.anthropic.com/en/docs/about-claude/models for details and options.
+"""
 
 
 class Agent:
@@ -22,7 +27,21 @@ class Agent:
     TOOLS = (OpenFileTool, EditFileTool, CompleteTaskTool)
     """Tools available to the agent."""
 
-    def __init__(self, codebase_path: str | Path):
+    def __init__(self, codebase_path: str | Path, workspace_path: str | Path):
+        """
+        Initialise the agent.
+
+        Parameters
+        ----------
+        codebase_path : str | Path
+            Full path to the root of the codebase to work on.
+
+        workspace_path : str | Path
+            Full path to the agent's workspace directory. This is where the agent will save
+            the modified codebase, and write any other files that it needs to.
+        """
+        self.workspace_path = Path(workspace_path)
+
         self.codebase = Codebase(codebase_path)
         self.message_log = MessageLog()
 
@@ -51,13 +70,14 @@ class Agent:
 
     def step(self):
         messages = self.message_log.return_messages_list()
+        tool_descriptions = [tool.json_description() for tool in self.TOOLS]
 
         response = anthropic.Anthropic().messages.create(
             model=MODEL,
             messages=messages,
             max_tokens=2056,
             system=self.system_prompt,
-            tools=[tool.json_description() for tool in self.TOOLS],
+            tools=tool_descriptions,
         )
         response = parse_tool_use_response(response)
 
@@ -68,6 +88,7 @@ class Agent:
             tool_arguments=response.tool_arguments,
         )
         self.message_log.add_message(assistant_message)
+        logger.info(f"🤖 Assistant message:\n{assistant_message.return_json_message()}")
 
         tool_instance = ToolFactory.create_tool(response.tool_name, **response.tool_arguments)
 
@@ -80,8 +101,10 @@ class Agent:
             summarised_observation=observation.summarised_observation_description,
         )
         self.message_log.add_message(user_message)
+        logger.info(f"🐼 User message:\n{user_message.return_json_message()}")
 
         self.step_number += 1
 
     def finish(self):
-        pass
+        logger.info(f"Task completed in {self.step_number} steps.")
+        self.codebase.write_codebase_to_disk(self.workspace_path)
