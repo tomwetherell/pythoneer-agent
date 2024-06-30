@@ -21,7 +21,22 @@ class ToolFactory:
         tool_name: str,
         **kwargs,
     ) -> Tool:
-        """Create a tool by name."""
+        """
+        Create a tool by name.
+
+        Parameters
+        ----------
+        tool_name : str
+            The name of the tool to create.
+
+        **kwargs
+            The arguments for the tool.
+
+        Returns
+        -------
+        tool : Tool
+            The created tool.
+        """
         try:
             tool_class = ToolFactory.TOOL_NAME_TO_CLASS[tool_name]
         except KeyError:
