@@ -81,10 +81,15 @@ class Tool(ABC):
             If the arguments are invalid (e.g., missing, wrong type, etc.)
         """
         try:
-            self.self.validate_arguments()
+            self.validate_arguments(agent)
         except ValueError as exc:
-            # TODO: Create ErrorObservation for this.
-            observation = Observation(step=self.step, description=str(exc))
+            error_description = (
+                f"An argument error was raised when using the tool '{self.NAME}': {str(exc)}"
+            )
+            observation = Observation(
+                observation_description=error_description,
+                summarised_observation_description=error_description,
+            )
         else:
             observation = self._use(agent)
 
