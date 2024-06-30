@@ -3,7 +3,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from pythoneer.agent import Agent
 from pythoneer.tools.observations import Observation
 from pythoneer.tools.base import Tool, Parameter
 from pythoneer.tools.factory import ToolFactory
@@ -25,7 +24,7 @@ class OpenFileTool(Tool):
     PARAMETERS = [
         Parameter(
             name="file_path",
-            type="str",
+            type="string",
             description="The full path to the file to open. e.g., 'data/processing.py'",
         )
     ]
@@ -72,7 +71,7 @@ class EditFileTool(Tool):
     PARAMETERS = [
         Parameter(
             name="commit_message",
-            type="str",
+            type="string",
             description=(
                 "The commit message is a short description of the changes you made to the file. "
                 "This should be detailed enough to allow other develoeprs to understand the changes "
@@ -82,7 +81,7 @@ class EditFileTool(Tool):
         ),
         Parameter(
             name="new_file_contents",
-            type="str",
+            type="string",
             description=(
                 "The new contents of the file. This should be the full, updated contents of the file. "
                 "This will be used to update the file in the codebase (the contents of the file "
