@@ -29,14 +29,14 @@ class OpenFileTool(Tool):
         )
     ]
 
-    def _validate_argument_values(self):
+    def _validate_argument_values(self, agent: Agent):
         """Check that the file exists in the codebase."""
         file_path = self.arguments["file_path"]
 
-        if file_path not in self.agent.codebase.get_relative_file_paths:
+        if file_path not in agent.codebase.get_relative_file_paths():
             raise ValueError(
                 f"The file '{file_path}' does not exist in the codebase."
-                f"The files in the codebase are: {self.agent.codebase.formatted_relative_file_paths()}"
+                f"The files in the codebase are: {agent.codebase.formatted_relative_file_paths()}"
             )
 
     def _use(self, agent: Agent) -> Observation:
@@ -47,7 +47,7 @@ class OpenFileTool(Tool):
         file_contents = agent.codebase.retrieve_file(file_path).contents
 
         observation_description = (
-            f"Opened the file '{file_path}'."
+            f"Opened the file '{file_path}'. "
             f"Contents of {file_path}: \n```python\n{file_contents}\n```"
         )
 
