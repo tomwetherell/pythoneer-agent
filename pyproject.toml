@@ -9,6 +9,7 @@ dynamic = ["version", "description"]
 
 dependencies = [
   "ruff",
+  "loguru",
   "pre-commit",
   "anthropic==0.28",
   "python-dotenv",
@@ -16,3 +17,6 @@ dependencies = [
 
 [project.urls]
 Home = "https://github.com/tomwetherell/pythoneer-agent"
+
+[tool.ruff]
+line-length = 100
