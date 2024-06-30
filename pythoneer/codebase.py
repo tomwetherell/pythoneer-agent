@@ -46,12 +46,11 @@ class Codebase:
     def formatted_relative_file_paths(self) -> str:
         """Return a formatted string of all relative file paths in the codebase."""
         relative_file_paths_w_bullets = [
-            f"* {relative_file_path}"
-            for relative_file_path in self._get_relative_file_paths()
+            f"* {relative_file_path}" for relative_file_path in self.get_relative_file_paths()
         ]
         return "\n".join(relative_file_paths_w_bullets)
 
-    def _get_relative_file_paths(self) -> list[str]:
+    def get_relative_file_paths(self) -> list[str]:
         """Return a list of all relative file paths in the codebase."""
         return list(self.files.keys())
 
