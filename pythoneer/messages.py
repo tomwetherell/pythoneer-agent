@@ -77,7 +77,7 @@ class Message(ABC):
 
 
 class InstanceMessage(Message):
-    """Class to represent the message that describes the task."""
+    """Class to represent the initial message that describes the task."""
 
     ROLE = "user"
 
@@ -214,7 +214,7 @@ class AssistantMessage(Message):
                 "type": "tool_use",
                 "id": self.tool_id,
                 "name": self.tool_name,
-                "inputs": tool_arguments,
+                "input": tool_arguments,
             },
         ]
 
@@ -237,7 +237,7 @@ class UserMessage(Message):
         tool_id: str,
         observation: str,
         summarised_observation: str,
-        review_comment: str | None,
+        review_comment: str | None = None,
     ):
         """
         Initalise the UserMessage object.
