@@ -8,6 +8,7 @@ from loguru import logger
 
 from pythoneer.codebase import Codebase
 from pythoneer.messages import MessageLog, InstanceMessage, AssistantMessage, UserMessage
+from pythoneer.trajectory import Trajectory, TrajectoryStep
 from pythoneer.llm import parse_tool_use_response
 from pythoneer.tools.factory import ToolFactory
 from pythoneer.tools.tools import OpenFileTool, EditFileTool, CompleteTaskTool
@@ -44,6 +45,7 @@ class Agent:
 
         self.codebase = Codebase(codebase_path)
         self.message_log = MessageLog()
+        self.trajectory = Trajectory()
 
         self.step_number: int = 0
         self.task_completed: bool = False
@@ -69,6 +71,8 @@ class Agent:
         self.finish()
 
     def step(self):
+        self.step_number += 1
+
         messages = self.message_log.return_messages_list()
         tool_descriptions = [tool.json_description() for tool in self.TOOLS]
 
@@ -103,8 +107,20 @@ class Agent:
         self.message_log.add_message(user_message)
         logger.info(f"🐼 User message:\n{user_message.return_json_message()}")
 
-        self.step_number += 1
+        trajectory_step = TrajectoryStep(
+            step_number=self.step_number,
+            thought=response.thought,
+            tool_name=response.tool_name,
+            tool_arguments=response.tool_arguments,
+            terminal_output=observation.terminal_output,
+            terminal_content=observation.terminal_content,
+            file_viewer_changed=observation.file_viewer_changed,
+            open_file_name=self.open_file_relative_path,
+            file_viewer_content=self.codebase.retrieve_file(self.open_file_relative_path).contents,
+        )
+        self.trajectory.add_step(trajectory_step)
 
     def finish(self):
         logger.info(f"Task completed in {self.step_number} steps.")
         self.codebase.write_codebase_to_disk(self.workspace_path)
+        self.trajectory.write_to_disk(self.workspace_path)
