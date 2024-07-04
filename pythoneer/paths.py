@@ -13,3 +13,8 @@ DEMONSTRATIONS_PATH = PROJECT_ROOT / "demonstrations"
 
 PY2_TO_PY3_PROMPT_PATH = PROMPTS_PATH / "py2_to_py3.yaml"
 """Path to the Python 2 to Python 3 prompts."""
+
+# Capability: PyTorch to TensorFlow
+
+PYTORCH_TO_TENSORFLOW_PROMPT_PATH = PROMPTS_PATH / "pytorch_to_tensorflow.yaml"
+"""Path to the PyTorch to TensorFlow prompts."""

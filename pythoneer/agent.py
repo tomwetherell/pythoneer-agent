@@ -12,7 +12,8 @@ from pythoneer.trajectory import Trajectory, TrajectoryStep
 from pythoneer.llm import parse_tool_use_response
 from pythoneer.tools.factory import ToolFactory
 from pythoneer.tools.tools import OpenFileTool, EditFileTool, CompleteTaskTool
-from pythoneer.paths import PY2_TO_PY3_PROMPT_PATH
+from pythoneer.paths import PY2_TO_PY3_PROMPT_PATH, PYTORCH_TO_TENSORFLOW_PROMPT_PATH
+
 
 MODEL = "claude-3-sonnet-20240229"
 """
@@ -25,10 +26,18 @@ See https://docs.anthropic.com/en/docs/about-claude/models for details and optio
 class Agent:
     """Coding agent."""
 
+    TASKS = ("py2_to_py3", "pytorch_to_tensorflow", "tensorflow_to_pytorch")
+    """Tasks that the agent can complete."""
+
     TOOLS = (OpenFileTool, EditFileTool, CompleteTaskTool)
     """Tools available to the agent."""
 
-    def __init__(self, codebase_path: str | Path, workspace_path: str | Path):
+    def __init__(
+        self,
+        codebase_path: str | Path,
+        workspace_path: str | Path,
+        task: str,
+    ):
         """
         Initialise the agent.
 
@@ -40,7 +49,19 @@ class Agent:
         workspace_path : str | Path
             Full path to the agent's workspace directory. This is where the agent will save
             the modified codebase, and write any other files that it needs to.
+
+        task : str
+            The task that the agent should complete. Must be one of `Agent.TASKS`.
+
+        Raises
+        ------
+        ValueError
+            If `task` is not one of `Agent.TASKS`.
         """
+        if task not in self.TASKS:
+            raise ValueError(f"Task must be one of {self.TASKS}, not {task}.")
+        self.task = task
+
         self.workspace_path = Path(workspace_path)
 
         self.codebase = Codebase(codebase_path)
@@ -53,16 +74,26 @@ class Agent:
         self.open_file_relative_path: str | None = None
 
         # Load the prompts
-        with open(PY2_TO_PY3_PROMPT_PATH) as fh:
+        self._load_prompts()
+
+        instance_message = InstanceMessage(self.instance_prompt)
+        self.message_log.add_message(instance_message)
+
+    def _load_prompts(self):
+        """Load the prompts from the prompts file corresponding to the task."""
+        if self.task == "py2_to_py3":
+            prompts_path = PY2_TO_PY3_PROMPT_PATH
+        elif self.task == "pytorch_to_tensorflow":
+            prompts_path = PYTORCH_TO_TENSORFLOW_PROMPT_PATH
+
+        with open(prompts_path) as fh:
             prompts = yaml.safe_load(fh)
+
         self.system_prompt = prompts["system_prompt"]
         self.instance_prompt = prompts["instance_prompt_template"].format(
             codebase_files_list=self.codebase.formatted_relative_file_paths()
         )
         self.next_step_prompt = prompts["next_step_prompt"]
-
-        instance_message = InstanceMessage(self.instance_prompt)
-        self.message_log.add_message(instance_message)
 
     def run(self):
         while not self.task_completed:
