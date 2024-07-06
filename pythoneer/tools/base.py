@@ -74,17 +74,13 @@ class Tool(ABC):
         -------
         observation : Observation
             An observation after using the tool.
-
-        Raises
-        ------
-        ValueError
-            If the arguments are invalid (e.g., missing, wrong type, etc.)
         """
         try:
             self.validate_arguments(agent)
         except ValueError as exc:
             error_description = (
-                f"An argument error was raised when using the tool '{self.NAME}': {str(exc)}"
+                f"An argument error was raised when using the tool '{self.NAME}':\n{str(exc)}"
+                f"\nPlease either correct the issue and try again, or use a different tool."
             )
             observation = Observation(
                 observation_description=error_description,
