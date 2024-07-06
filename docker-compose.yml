@@ -12,3 +12,5 @@ services:
       context: .
       dockerfile: docker/DockerfilePy3
     image: python3-base:latest
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1

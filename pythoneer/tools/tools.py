@@ -11,6 +11,7 @@ from pythoneer.tools.observations import Observation
 from pythoneer.tools.base import Tool, Parameter
 from pythoneer.tools.factory import ToolFactory
 
+
 if TYPE_CHECKING:
     from pythoneer.agent import Agent
 
@@ -39,8 +40,8 @@ class OpenFileTool(Tool):
 
         if file_path not in agent.codebase.get_relative_file_paths():
             raise ValueError(
-                f"The file '{file_path}' does not exist in the codebase."
-                f"The files in the codebase are: {agent.codebase.formatted_relative_file_paths()}"
+                f"The file '{file_path}' does not exist in the codebase. "
+                f"The files in the codebase are:\n{agent.codebase.formatted_relative_file_paths()}"
             )
 
     def _use(self, agent: Agent) -> Observation:
@@ -107,7 +108,7 @@ class EditFileTool(Tool):
         agent.codebase.edit_file(file_path, new_contents)
 
         observation_description = (
-            f"Edited the file '{file_path}'.\nCommit message: {commit_message}"
+            f"Edited the file '{file_path}'.\nCommit message: '{commit_message}'.\n"
             f"New contents of {file_path}: \n```python\n{new_contents}\n```"
         )
 
@@ -207,7 +208,7 @@ class RunPythonScriptTool(Tool):
                 docker_image,
                 "bash",
                 "-c",
-                f"python {script_path} {script_arguments} > /workspace/stdout.txt 2> /workspace/stderr.txt",
+                f"python -B {script_path} {script_arguments} > /workspace/stdout.txt 2> /workspace/stderr.txt",
             ]
 
             try:
