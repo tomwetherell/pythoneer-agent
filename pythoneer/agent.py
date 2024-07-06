@@ -93,7 +93,7 @@ class Agent:
         self.instance_prompt = prompts["instance_prompt_template"].format(
             codebase_files_list=self.codebase.formatted_relative_file_paths()
         )
-        self.next_step_prompt = prompts["next_step_prompt"]
+        self.next_step_prompt_template = prompts["next_step_prompt_template"]
 
     def run(self):
         while not self.task_completed:
@@ -130,11 +130,15 @@ class Agent:
         # Use the tool, and get the observation
         observation = tool_instance.use(self)
 
+        next_step_prompt = self.next_step_prompt_template.format(
+            open_file=self.open_file_relative_path
+        )
+
         user_message = UserMessage(
             tool_id=response.tool_id,
             observation=observation.observation_description,
             summarised_observation=observation.summarised_observation_description,
-            next_step_prompt=self.next_step_prompt,
+            next_step_prompt=next_step_prompt,
         )
         self.message_log.add_message(user_message)
         logger.info(f"🐼 User message:\n{user_message.return_json_message()}")
