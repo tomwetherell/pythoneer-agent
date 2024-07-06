@@ -137,6 +137,18 @@ class RunPythonScriptTool(Tool):
             description="The full path to the Python script to run. e.g., 'data/processing.py'",
         ),
         Parameter(
+            name="script_arguments",
+            type="string",
+            description=(
+                "The arguments to pass to the Python script when running it, if any. "
+                "These should be formatted as a string, e.g., '--arg1 value1 --arg2 value2'. "
+                "The arguments should be formatted as they would be passed on the command line."
+                "This field is not required if the script does not take any arguments, or if "
+                "no arguments are to be passed."
+            ),
+            required=False,
+        ),
+        Parameter(
             name="environment",
             type="string",
             description=(
@@ -175,6 +187,7 @@ class RunPythonScriptTool(Tool):
     def _use(self, agent: Agent) -> Observation:
         """Run the Python script."""
         script_path = self.arguments["script_path"]
+        script_arguments = self.arguments.get("script_arguments", "")
         environment = self.arguments["environment"]
 
         docker_image = self.ENVIRONMENT_TO_IMAGE[environment]
@@ -194,7 +207,7 @@ class RunPythonScriptTool(Tool):
                 docker_image,
                 "bash",
                 "-c",
-                f"python {script_path} > /workspace/stdout.txt 2> /workspace/stderr.txt",
+                f"python {script_path} {script_arguments} > /workspace/stdout.txt 2> /workspace/stderr.txt",
             ]
 
             try:
