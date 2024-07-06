@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import yaml
 from abc import ABC, abstractmethod
-
-from pythoneer.paths import PY2_TO_PY3_PROMPT_PATH
 
 
 class MessageLog:
@@ -237,6 +234,7 @@ class UserMessage(Message):
         tool_id: str,
         observation: str,
         summarised_observation: str,
+        next_step_prompt: str,
         review_comment: str | None = None,
     ):
         """
@@ -253,12 +251,16 @@ class UserMessage(Message):
         summarised_observation: str
             A summarised version of the observation.
 
+        next_step_prompt: str
+            The prompt for the next step.
+
         review_comment: str | None
             A comment from the reviewer about the result.
         """
         self.tool_id = tool_id
         self.observation = observation
         self.summarised_observation = summarised_observation
+        self.next_step_prompt = next_step_prompt
         self.review_comment = review_comment
 
     def return_json_message(
@@ -306,15 +308,10 @@ class UserMessage(Message):
                 }
             )
 
-        # TODO: Make this configurable
-        with open(PY2_TO_PY3_PROMPT_PATH, "r") as fh:
-            prompts = yaml.safe_load(fh)
-        next_step_prompt = prompts["next_step_prompt"]
-
         content.append(
             {
                 "type": "text",
-                "text": next_step_prompt,
+                "text": self.next_step_prompt,
             }
         )
 

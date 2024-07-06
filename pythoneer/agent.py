@@ -134,6 +134,7 @@ class Agent:
             tool_id=response.tool_id,
             observation=observation.observation_description,
             summarised_observation=observation.summarised_observation_description,
+            next_step_prompt=self.next_step_prompt,
         )
         self.message_log.add_message(user_message)
         logger.info(f"🐼 User message:\n{user_message.return_json_message()}")
