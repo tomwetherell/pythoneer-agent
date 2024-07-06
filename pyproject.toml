@@ -9,10 +9,10 @@ dynamic = ["version", "description"]
 
 dependencies = [
   "ruff",
-  "loguru",
   "pre-commit",
-  "anthropic==0.28",
   "python-dotenv",
+  "loguru",
+  "anthropic==0.28",
 ]
 
 [project.urls]
