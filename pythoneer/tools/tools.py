@@ -187,6 +187,7 @@ class RunPythonScriptTool(Tool):
 
     def _use(self, agent: Agent) -> Observation:
         """Run the Python script."""
+        # TODO: Add docstring explaining use of Docker.
         script_path = self.arguments["script_path"]
         script_arguments = self.arguments.get("script_arguments", "")
         environment = self.arguments["environment"]
@@ -248,6 +249,9 @@ class RunPythonScriptTool(Tool):
         self, script_path: str, environment: str, stdout: str, stderr: str
     ) -> tuple[str, str]:
         """Create the observation description and summarised observation description."""
+        # TODO: Maybe the stdout shouldn't be summarised, as that will stop the agent from
+        # comparing the functionality before changes have been made to the functionality after
+        # changes have been made.
         if stdout and stderr:
             observation_description = (
                 f"Ran the Python script '{script_path}' in the '{environment}' environment.\n"
