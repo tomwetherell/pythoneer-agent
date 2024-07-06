@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  python2-base:
+    build:
+      context: .
+      dockerfile: docker/DockerfilePy2
+    image: python2-base:latest
+
+  python3-base:
+    build:
+      context: .
+      dockerfile: docker/DockerfilePy3
+    image: python3-base:latest
