@@ -3,9 +3,9 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import os  # TODO: Replace with pathlib?
 import subprocess
 import tempfile
+from pathlib import Path
 
 from pythoneer.tools.observations import Observation
 from pythoneer.tools.base import Tool, Parameter
@@ -80,7 +80,7 @@ class EditFileTool(Tool):
                 "The commit message is a short description of the changes you made to the file. "
                 "This should be detailed enough to allow other develoeprs to understand the changes "
                 "you made (without having to read the entire diff), but succinct enough to fit in a "
-                "a couple of sentences."  # Modify when review comments are added - message should make it clear that the commit addresses the review comment
+                "a couple of sentences."  # TODO: Modify when review comments are added - message should make it clear that the commit addresses the review comment
             ),
         ),
         Parameter(
@@ -179,39 +179,37 @@ class RunPythonScriptTool(Tool):
 
         docker_image = self.ENVIRONMENT_TO_IMAGE[environment]
 
-        # Temporarily write the codebase to the agent's workspace. This will be mounted into the
-        # Docker container, and the script will be run in the container. The temporary directory
-        # will be deleted after the script has been run.
-        agent.codebase.write_codebase_to_disk(output_path=agent.workspace_path)
-
         with tempfile.TemporaryDirectory() as temp_dir:
+            # Write the codebase to the temporary directory
+            agent.codebase.write_codebase_to_disk(output_path=temp_dir)
+
             command = [
                 "docker",
                 "run",
                 "--rm",
                 "-v",
-                f"{agent.workspace_path}:/app:ro",  # Mount the codebase into the container
-                "-v",
-                f"{temp_dir}:/output",  # Mount a temporary directory to store the output
+                f"{temp_dir}:/workspace",  # Mount the temporary directory to /workspace in the container
                 "-w",
-                "/app/codebase",  # Set the working directory to the codebase
-                docker_image,  # Docker image to run
+                "/workspace/codebase",  # Set the working directory to the codebase
+                docker_image,
                 "bash",
                 "-c",
-                f"python {script_path} > /output/stdout.txt 2> /output/stderr.txt",
+                f"python {script_path} > /workspace/stdout.txt 2> /workspace/stderr.txt",
             ]
 
             try:
                 subprocess.run(command, check=True)
-
-                with open(os.path.join(temp_dir, "stdout.txt"), "r") as f:
-                    stdout = f.read()
-                with open(os.path.join(temp_dir, "stderr.txt"), "r") as f:
-                    stderr = f.read()
-
-            except subprocess.CalledProcessError as e:
+            except subprocess.CalledProcessError as exc:
                 stdout = ""
-                stderr = f"Error running script: {e}"
+                stderr = f"Error running script: {exc}"
+            else:
+                stdout_path = Path(temp_dir) / "stdout.txt"
+                stderr_path = Path(temp_dir) / "stderr.txt"
+
+                with stdout_path.open("r") as fh:
+                    stdout = fh.read()
+                with stderr_path.open("r") as fh:
+                    stderr = fh.read()
 
         observation_description = (
             f"Ran the Python script '{script_path}' in the '{environment}' environment.\n"
