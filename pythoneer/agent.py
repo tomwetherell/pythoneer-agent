@@ -139,6 +139,11 @@ class Agent:
         self.message_log.add_message(user_message)
         logger.info(f"🐼 User message:\n{user_message.return_json_message()}")
 
+        if self.open_file_relative_path:
+            file_viewer_content = self.codebase.retrieve_file(self.open_file_relative_path).contents
+        else:
+            file_viewer_content = None
+
         trajectory_step = TrajectoryStep(
             step_number=self.step_number,
             thought=response.thought,
@@ -148,7 +153,7 @@ class Agent:
             terminal_content=observation.terminal_content,
             file_viewer_changed=observation.file_viewer_changed,
             open_file_name=self.open_file_relative_path,
-            file_viewer_content=self.codebase.retrieve_file(self.open_file_relative_path).contents,
+            file_viewer_content=file_viewer_content,
         )
         self.trajectory.add_step(trajectory_step)
 
