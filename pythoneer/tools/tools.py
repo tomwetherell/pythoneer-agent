@@ -194,7 +194,7 @@ class RunPythonScriptTool(Tool):
                 "-v",
                 f"{temp_dir}:/output",  # Mount a temporary directory to store the output
                 "-w",
-                "/app",  # Set the working directory to the codebase
+                "/app/codebase",  # Set the working directory to the codebase
                 docker_image,  # Docker image to run
                 "bash",
                 "-c",
@@ -222,6 +222,7 @@ class RunPythonScriptTool(Tool):
             f"Ran the Python script '{script_path}' in the '{environment}' environment."
         )
 
+        # TODO: This should output to terminal
         observation = Observation(
             observation_description=observation_description,
             summarised_observation_description=summarised_observation_description,
@@ -254,4 +255,5 @@ class CompleteTaskTool(Tool):
 
 ToolFactory.register_tool(OpenFileTool)
 ToolFactory.register_tool(EditFileTool)
+ToolFactory.register_tool(RunPythonScriptTool)
 ToolFactory.register_tool(CompleteTaskTool)

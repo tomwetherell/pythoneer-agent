@@ -11,7 +11,7 @@ from pythoneer.messages import MessageLog, InstanceMessage, AssistantMessage, Us
 from pythoneer.trajectory import Trajectory, TrajectoryStep
 from pythoneer.llm import parse_tool_use_response
 from pythoneer.tools.factory import ToolFactory
-from pythoneer.tools.tools import OpenFileTool, EditFileTool, CompleteTaskTool
+from pythoneer.tools.tools import OpenFileTool, EditFileTool, RunPythonScriptTool, CompleteTaskTool
 from pythoneer.paths import PY2_TO_PY3_PROMPT_PATH, PYTORCH_TO_TENSORFLOW_PROMPT_PATH
 
 
@@ -29,7 +29,7 @@ class Agent:
     TASKS = ("py2_to_py3", "pytorch_to_tensorflow", "tensorflow_to_pytorch")
     """Tasks that the agent can complete."""
 
-    TOOLS = (OpenFileTool, EditFileTool, CompleteTaskTool)
+    TOOLS = (OpenFileTool, EditFileTool, RunPythonScriptTool, CompleteTaskTool)
     """Tools available to the agent."""
 
     def __init__(
