@@ -26,6 +26,6 @@ instance_prompt_template: |-
   You currently have no file open in your file editor.
   Think carefully about the next step you want to take.
 
-next_step_prompt: |-
+next_step_prompt_template: |-
   You currently have the file '{open_file}' open' in your file editor.
   Think carefully about the next step you want to take.
