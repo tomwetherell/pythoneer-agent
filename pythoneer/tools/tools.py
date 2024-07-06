@@ -211,22 +211,69 @@ class RunPythonScriptTool(Tool):
                 with stderr_path.open("r") as fh:
                     stderr = fh.read()
 
-        observation_description = (
-            f"Ran the Python script '{script_path}' in the '{environment}' environment.\n"
-            f"stdout:\n```\n{stdout}\n```\nstderr:\n```\n{stderr}\n```"
+        observation_description, summarised_observation_description = (
+            self._create_observation_description(script_path, environment, stdout, stderr)
         )
 
-        summarised_observation_description = (
-            f"Ran the Python script '{script_path}' in the '{environment}' environment."
-        )
+        terminal_output = True
+        if stdout or stderr:
+            terminal_contents = f"{stdout}\n{stderr}"
+        else:
+            terminal_contents = "The script ran successfully with no output."
 
-        # TODO: This should output to terminal
         observation = Observation(
             observation_description=observation_description,
             summarised_observation_description=summarised_observation_description,
+            terminal_output=terminal_output,
+            terminal_content=terminal_contents,
         )
 
         return observation
+
+    def _create_observation_description(
+        self, script_path: str, environment: str, stdout: str, stderr: str
+    ) -> tuple[str, str]:
+        """Create the observation description and summarised observation description."""
+        if stdout and stderr:
+            observation_description = (
+                f"Ran the Python script '{script_path}' in the '{environment}' environment.\n"
+                f"stdout:\n```\n{stdout}\n```\nstderr:\n```\n{stderr}\n```"
+            )
+            summarised_observation_description = (
+                f"Ran the Python script '{script_path}' in the '{environment}' environment."
+            )
+
+        elif stdout:
+            observation_description = (
+                f"Ran the Python script '{script_path}' in the '{environment}' environment.\n"
+                f"stdout:\n```\n{stdout}\n```"
+            )
+            summarised_observation_description = (
+                f"Ran the Python script '{script_path}' in the '{environment}' environment."
+                f"The script ran successfully with no errors."
+            )
+
+        elif stderr:
+            observation_description = (
+                f"Ran the Python script '{script_path}' in the '{environment}' environment.\n"
+                f"stderr:\n```\n{stderr}\n```"
+            )
+            summarised_observation_description = (
+                f"Ran the Python script '{script_path}' in the '{environment}' environment."
+                f"The script ran with errors."
+            )
+
+        else:
+            observation_description = (
+                f"Ran the Python script '{script_path}' in the '{environment}' environment."
+                f"The script ran successfully with no output."
+            )
+            summarised_observation_description = (
+                f"Ran the Python script '{script_path}' in the '{environment}' environment."
+                f"The script ran successfully with no output."
+            )
+
+        return observation_description, summarised_observation_description
 
 
 class CompleteTaskTool(Tool):
