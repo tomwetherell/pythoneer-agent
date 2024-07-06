@@ -21,6 +21,7 @@ class Parameter:
     name: str
     type: str
     description: str
+    enum: list[str] | None = None
     required: bool = True
 
 
@@ -74,17 +75,13 @@ class Tool(ABC):
         -------
         observation : Observation
             An observation after using the tool.
-
-        Raises
-        ------
-        ValueError
-            If the arguments are invalid (e.g., missing, wrong type, etc.)
         """
         try:
             self.validate_arguments(agent)
         except ValueError as exc:
             error_description = (
-                f"An argument error was raised when using the tool '{self.NAME}': {str(exc)}"
+                f"An argument error was raised when using the tool '{self.NAME}':\n{str(exc)}"
+                f"\nPlease either correct the issue and try again, or use a different tool."
             )
             observation = Observation(
                 observation_description=error_description,
@@ -122,10 +119,14 @@ class Tool(ABC):
         """
         properties = {}
         for parameter in cls.PARAMETERS:
-            properties[parameter.name] = {
+            name = parameter.name
+            properties[name] = {
                 "type": parameter.type,
                 "description": parameter.description,
             }
+
+            if parameter.enum:
+                properties[name]["enum"] = parameter.enum
 
         required = [parameter.name for parameter in cls.PARAMETERS if parameter.required]
 

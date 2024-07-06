@@ -11,7 +11,7 @@ from pythoneer.messages import MessageLog, InstanceMessage, AssistantMessage, Us
 from pythoneer.trajectory import Trajectory, TrajectoryStep
 from pythoneer.llm import parse_tool_use_response
 from pythoneer.tools.factory import ToolFactory
-from pythoneer.tools.tools import OpenFileTool, EditFileTool, CompleteTaskTool
+from pythoneer.tools.tools import OpenFileTool, EditFileTool, RunPythonScriptTool, CompleteTaskTool
 from pythoneer.paths import PY2_TO_PY3_PROMPT_PATH, PYTORCH_TO_TENSORFLOW_PROMPT_PATH
 
 
@@ -29,7 +29,7 @@ class Agent:
     TASKS = ("py2_to_py3", "pytorch_to_tensorflow", "tensorflow_to_pytorch")
     """Tasks that the agent can complete."""
 
-    TOOLS = (OpenFileTool, EditFileTool, CompleteTaskTool)
+    TOOLS = (OpenFileTool, EditFileTool, RunPythonScriptTool, CompleteTaskTool)
     """Tools available to the agent."""
 
     def __init__(
@@ -93,7 +93,7 @@ class Agent:
         self.instance_prompt = prompts["instance_prompt_template"].format(
             codebase_files_list=self.codebase.formatted_relative_file_paths()
         )
-        self.next_step_prompt = prompts["next_step_prompt"]
+        self.next_step_prompt_template = prompts["next_step_prompt_template"]
 
     def run(self):
         while not self.task_completed:
@@ -130,14 +130,23 @@ class Agent:
         # Use the tool, and get the observation
         observation = tool_instance.use(self)
 
+        next_step_prompt = self.next_step_prompt_template.format(
+            open_file=self.open_file_relative_path
+        )
+
         user_message = UserMessage(
             tool_id=response.tool_id,
             observation=observation.observation_description,
             summarised_observation=observation.summarised_observation_description,
-            next_step_prompt=self.next_step_prompt,
+            next_step_prompt=next_step_prompt,
         )
         self.message_log.add_message(user_message)
         logger.info(f"🐼 User message:\n{user_message.return_json_message()}")
+
+        if self.open_file_relative_path:
+            file_viewer_content = self.codebase.retrieve_file(self.open_file_relative_path).contents
+        else:
+            file_viewer_content = None
 
         trajectory_step = TrajectoryStep(
             step_number=self.step_number,
@@ -148,7 +157,7 @@ class Agent:
             terminal_content=observation.terminal_content,
             file_viewer_changed=observation.file_viewer_changed,
             open_file_name=self.open_file_relative_path,
-            file_viewer_content=self.codebase.retrieve_file(self.open_file_relative_path).contents,
+            file_viewer_content=file_viewer_content,
         )
         self.trajectory.add_step(trajectory_step)
 

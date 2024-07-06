@@ -3,9 +3,14 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import subprocess
+import tempfile
+from pathlib import Path
+
 from pythoneer.tools.observations import Observation
 from pythoneer.tools.base import Tool, Parameter
 from pythoneer.tools.factory import ToolFactory
+
 
 if TYPE_CHECKING:
     from pythoneer.agent import Agent
@@ -35,8 +40,8 @@ class OpenFileTool(Tool):
 
         if file_path not in agent.codebase.get_relative_file_paths():
             raise ValueError(
-                f"The file '{file_path}' does not exist in the codebase."
-                f"The files in the codebase are: {agent.codebase.formatted_relative_file_paths()}"
+                f"The file '{file_path}' does not exist in the codebase. "
+                f"The files in the codebase are:\n{agent.codebase.formatted_relative_file_paths()}"
             )
 
     def _use(self, agent: Agent) -> Observation:
@@ -76,7 +81,7 @@ class EditFileTool(Tool):
                 "The commit message is a short description of the changes you made to the file. "
                 "This should be detailed enough to allow other develoeprs to understand the changes "
                 "you made (without having to read the entire diff), but succinct enough to fit in a "
-                "a couple of sentences."  # Modify when review comments are added - message should make it clear that the commit addresses the review comment
+                "a couple of sentences."  # TODO: Modify when review comments are added - message should make it clear that the commit addresses the review comment
             ),
         ),
         Parameter(
@@ -103,7 +108,7 @@ class EditFileTool(Tool):
         agent.codebase.edit_file(file_path, new_contents)
 
         observation_description = (
-            f"Edited the file '{file_path}'.\nCommit message: {commit_message}"
+            f"Edited the file '{file_path}'.\nCommit message: '{commit_message}'.\n"
             f"New contents of {file_path}: \n```python\n{new_contents}\n```"
         )
 
@@ -119,6 +124,170 @@ class EditFileTool(Tool):
         )
 
         return observation
+
+
+class RunPythonScriptTool(Tool):
+    """Tool to run a Python script."""
+
+    NAME = "run_python_script"
+    DESCRIPTION = "Run a Python script."
+    PARAMETERS = [
+        Parameter(
+            name="script_path",
+            type="string",
+            description="The full path to the Python script to run. e.g., 'data/processing.py'",
+        ),
+        Parameter(
+            name="script_arguments",
+            type="string",
+            description=(
+                "The arguments to pass to the Python script when running it, if any. "
+                "These should be formatted as a string, e.g., '--arg1 value1 --arg2 value2'. "
+                "The arguments should be formatted as they would be passed on the command line."
+                "This field is not required if the script does not take any arguments, or if "
+                "no arguments are to be passed."
+            ),
+            required=False,
+        ),
+        Parameter(
+            name="environment",
+            type="string",
+            description=(
+                "The name of the environment to run the script in, either 'python2' or 'python3'."
+                "The 'python2' environment should be used when running Python 2 scripts, and the "
+                "'python3' environment should be used when running Python 3 scripts."
+            ),
+            enum=["python2", "python3"],
+        ),
+    ]
+
+    ENVIRONMENT_TO_IMAGE = {
+        "python2": "python2-base:latest",
+        "python3": "python3-base:latest",
+    }
+    """Mapping of environment names to Docker image names."""
+
+    def _validate_argument_values(self, agent: Agent):
+        """Check that the file exists in the codebase, and that the environment is valid."""
+        script_path = self.arguments["script_path"]
+
+        if script_path not in agent.codebase.get_relative_file_paths():
+            raise ValueError(
+                f"The file '{script_path}' does not exist in the codebase."
+                f"The files in the codebase are: {agent.codebase.formatted_relative_file_paths()}"
+            )
+
+        environment = self.arguments["environment"]
+        environments = self.ENVIRONMENT_TO_IMAGE.keys()
+        if environment not in environments:
+            raise ValueError(
+                f"The environment '{environment}' is not valid. "
+                f"Valid environments are: {environments}"
+            )
+
+    def _use(self, agent: Agent) -> Observation:
+        """Run the Python script."""
+        script_path = self.arguments["script_path"]
+        script_arguments = self.arguments.get("script_arguments", "")
+        environment = self.arguments["environment"]
+
+        docker_image = self.ENVIRONMENT_TO_IMAGE[environment]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Write the codebase to the temporary directory
+            agent.codebase.write_codebase_to_disk(output_path=temp_dir)
+
+            command = [
+                "docker",
+                "run",
+                "--rm",
+                "-v",
+                f"{temp_dir}:/workspace",  # Mount the temporary directory to /workspace in the container
+                "-w",
+                "/workspace/codebase",  # Set the working directory to the codebase
+                docker_image,
+                "bash",
+                "-c",
+                f"python -B {script_path} {script_arguments} > /workspace/stdout.txt 2> /workspace/stderr.txt",
+            ]
+
+            try:
+                subprocess.run(command, check=True)
+            except subprocess.CalledProcessError as exc:
+                stdout = ""
+                stderr = f"Error running script: {exc}"
+            else:
+                stdout_path = Path(temp_dir) / "stdout.txt"
+                stderr_path = Path(temp_dir) / "stderr.txt"
+
+                with stdout_path.open("r") as fh:
+                    stdout = fh.read()
+                with stderr_path.open("r") as fh:
+                    stderr = fh.read()
+
+        observation_description, summarised_observation_description = (
+            self._create_observation_description(script_path, environment, stdout, stderr)
+        )
+
+        terminal_output = True
+        if stdout or stderr:
+            terminal_contents = f"{stdout}\n{stderr}"
+        else:
+            terminal_contents = "The script ran successfully with no output."
+
+        observation = Observation(
+            observation_description=observation_description,
+            summarised_observation_description=summarised_observation_description,
+            terminal_output=terminal_output,
+            terminal_content=terminal_contents,
+        )
+
+        return observation
+
+    def _create_observation_description(
+        self, script_path: str, environment: str, stdout: str, stderr: str
+    ) -> tuple[str, str]:
+        """Create the observation description and summarised observation description."""
+        if stdout and stderr:
+            observation_description = (
+                f"Ran the Python script '{script_path}' in the '{environment}' environment.\n"
+                f"stdout:\n```\n{stdout}\n```\nstderr:\n```\n{stderr}\n```"
+            )
+            summarised_observation_description = (
+                f"Ran the Python script '{script_path}' in the '{environment}' environment."
+            )
+
+        elif stdout:
+            observation_description = (
+                f"Ran the Python script '{script_path}' in the '{environment}' environment.\n"
+                f"stdout:\n```\n{stdout}\n```"
+            )
+            summarised_observation_description = (
+                f"Ran the Python script '{script_path}' in the '{environment}' environment."
+                f"The script ran successfully with no errors."
+            )
+
+        elif stderr:
+            observation_description = (
+                f"Ran the Python script '{script_path}' in the '{environment}' environment.\n"
+                f"stderr:\n```\n{stderr}\n```"
+            )
+            summarised_observation_description = (
+                f"Ran the Python script '{script_path}' in the '{environment}' environment."
+                f"The script ran with errors."
+            )
+
+        else:
+            observation_description = (
+                f"Ran the Python script '{script_path}' in the '{environment}' environment."
+                f"The script ran successfully with no output."
+            )
+            summarised_observation_description = (
+                f"Ran the Python script '{script_path}' in the '{environment}' environment."
+                f"The script ran successfully with no output."
+            )
+
+        return observation_description, summarised_observation_description
 
 
 class CompleteTaskTool(Tool):
@@ -145,4 +314,5 @@ class CompleteTaskTool(Tool):
 
 ToolFactory.register_tool(OpenFileTool)
 ToolFactory.register_tool(EditFileTool)
+ToolFactory.register_tool(RunPythonScriptTool)
 ToolFactory.register_tool(CompleteTaskTool)
