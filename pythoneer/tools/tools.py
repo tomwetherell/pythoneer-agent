@@ -136,7 +136,6 @@ class RunPythonScriptTool(Tool):
             type="string",
             description="The full path to the Python script to run. e.g., 'data/processing.py'",
         ),
-        # TODO: Add enum
         Parameter(
             name="environment",
             type="string",
@@ -145,6 +144,7 @@ class RunPythonScriptTool(Tool):
                 "The 'python2' environment should be used when running Python 2 scripts, and the "
                 "'python3' environment should be used when running Python 3 scripts."
             ),
+            enum=["python2", "python3"],
         ),
     ]
 

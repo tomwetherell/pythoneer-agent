@@ -21,6 +21,7 @@ class Parameter:
     name: str
     type: str
     description: str
+    enum: list[str] | None = None
     required: bool = True
 
 
@@ -118,10 +119,14 @@ class Tool(ABC):
         """
         properties = {}
         for parameter in cls.PARAMETERS:
-            properties[parameter.name] = {
+            name = parameter.name
+            properties[name] = {
                 "type": parameter.type,
                 "description": parameter.description,
             }
+
+            if parameter.enum:
+                properties[name]["enum"] = parameter.enum
 
         required = [parameter.name for parameter in cls.PARAMETERS if parameter.required]
 
