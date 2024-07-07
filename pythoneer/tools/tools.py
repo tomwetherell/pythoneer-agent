@@ -395,6 +395,139 @@ class RunPythonScriptTool(Tool):
         return observation_description, summarised_observation_description
 
 
+class RunAllTestsTool(Tool):
+    """Tool to run all tests in the codebase."""
+
+    NAME = "run_all_tests"
+    DESCRIPTION = "Run all tests in the codebase."
+    PARAMETERS = [
+        Parameter(
+            name="environment",
+            type="string",
+            description=(
+                "The name of the environment to run the tests in, either 'python2' or 'python3'."
+                "The 'python2' environment should be used when working with a codebase "
+                "that uses Python 2, and the 'python3' environment should be used when working "
+                "with a codebase that uses Python 3."
+            ),
+            enum=["python2", "python3"],
+        ),
+    ]
+
+    ENVIRONMENT_TO_IMAGE = {
+        "python2": "python2-base:latest",
+        "python3": "python3-base:latest",
+    }
+
+    def _validate_argument_values(self, agent: Agent):
+        """Check that the environment is valid."""
+        environment = self.arguments["environment"]
+        environments = self.ENVIRONMENT_TO_IMAGE.keys()
+        if environment not in environments:
+            raise ValueError(
+                f"The environment '{environment}' is not valid. "
+                f"Valid environments are: {environments}"
+            )
+
+    def _use(self, agent: Agent) -> Observation:
+        """Run all tests in the codebase."""
+        environment = self.arguments["environment"]
+        docker_image = self.ENVIRONMENT_TO_IMAGE[environment]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Write the codebase to the temporary directory
+            agent.codebase.write_codebase_to_disk(output_path=temp_dir)
+
+            command = [
+                "docker",
+                "run",
+                "--rm",
+                "-v",
+                f"{temp_dir}:/workspace",  # Mount the temporary directory to /workspace in the container
+                "-w",
+                "/workspace/codebase",  # Set the working directory to the codebase
+                docker_image,
+                "bash",
+                "-c",
+                "pytest > /workspace/stdout.txt 2> /workspace/stderr.txt",
+            ]
+
+            try:
+                subprocess.run(command, check=True)
+            except subprocess.CalledProcessError as exc:
+                stdout = ""
+                stderr = f"Error running tests: {exc}"
+            else:
+                stdout_path = Path(temp_dir) / "stdout.txt"
+                stderr_path = Path(temp_dir) / "stderr.txt"
+
+                with stdout_path.open("r") as fh:
+                    stdout = fh.read()
+                with stderr_path.open("r") as fh:
+                    stderr = fh.read()
+
+        observation_description, summarised_observation_description = (
+            self._create_observation_description(environment, stdout, stderr)
+        )
+
+        terminal_output = True
+        if stdout or stderr:
+            terminal_contents = f"{stdout}\n{stderr}"
+        else:
+            terminal_contents = "All tests ran successfully with no output."
+
+        observation = Observation(
+            observation_description=observation_description,
+            summarised_observation_description=summarised_observation_description,
+            terminal_output=terminal_output,
+            terminal_content=terminal_contents,
+        )
+
+        return observation
+
+    def _create_observation_description(
+        self, environment: str, stdout: str, stderr: str
+    ) -> tuple[str, str]:
+        """Create the observation description and summarised observation description."""
+        if stdout and stderr:
+            observation_description = (
+                f"Ran all tests in the codebase in the '{environment}' environment.\n"
+                f"stdout:\n```\n{stdout}\n```\nstderr:\n```\n{stderr}\n```"
+            )
+            summarised_observation_description = (
+                f"Ran all tests in the codebase in the '{environment}' environment."
+            )
+
+        elif stdout:
+            observation_description = (
+                f"Ran all tests in the codebase in the '{environment}' environment.\n"
+                f"stdout:\n```\n{stdout}\n```"
+            )
+            summarised_observation_description = (
+                f"Ran all tests in the codebase in the '{environment}' environment."
+                f"All tests ran successfully with no errors."
+            )
+
+        elif stderr:
+            observation_description = (
+                f"Ran all tests in the codebase in the '{environment}' environment.\n"
+                f"stderr:\n```\n{stderr}\n```"
+            )
+            summarised_observation_description = (
+                f"Ran all tests in the codebase in the '{environment}' environment."
+                f"There were errors when running the tests."
+            )
+
+        else:
+            observation_description = (
+                f"Ran all tests in the codebase in the '{environment}' environment."
+                f"All tests ran successfully with no output."
+            )
+            summarised_observation_description = observation_description
+
+        return observation_description, summarised_observation_description
+
+
 class CompleteTaskTool(Tool):
     """Tool to declare the task as complete."""
 
