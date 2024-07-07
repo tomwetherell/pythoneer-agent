@@ -3,7 +3,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import json
 import subprocess
 import tempfile
 from pathlib import Path
@@ -11,6 +10,7 @@ from pathlib import Path
 from pythoneer.tools.observations import Observation
 from pythoneer.tools.base import Tool, Parameter
 from pythoneer.tools.factory import ToolFactory
+from pythoneer.tools.utils import lint_code
 
 
 if TYPE_CHECKING:
@@ -116,7 +116,13 @@ class EditFileTool(Tool):
 
         agent.codebase.edit_file(file_path, new_contents)
 
-        lint_results = self._lint_code(new_contents)
+        if file_path.endswith(".py"):
+            lint_results = lint_code(new_contents)
+            python_file = True
+        else:
+            lint_results = None
+
+        # If there were linting issues, provide a review comment
         if lint_results:
             lint_results_bulleted = "\n* ".join(lint_results)
             review_comment = (
@@ -128,7 +134,7 @@ class EditFileTool(Tool):
 
         observation_description = (
             f"Edited the file '{file_path}'.\nCommit message: '{commit_message}'.\n"
-            f"New contents of {file_path}: \n```python\n{new_contents}\n```"
+            f"New contents of {file_path}:\n```{'python' if python_file else ''}\n{new_contents}\n```"
         )
 
         summarised_observation_description = (
@@ -145,46 +151,80 @@ class EditFileTool(Tool):
 
         return observation
 
-    @staticmethod
-    def _lint_code(code_string):
-        """
-        Lint the code block using Ruff.
 
-        Parameters
-        ----------
-        code_string : str
-            The code string to lint.
+class CreateFileTool(Tool):
+    """Tool to create a new file."""
 
-        Returns
-        -------
-        formatted_violations : list[str]
-            A list of formatted violations, where each violation is a string in the format
-            'line:column - code: message'.
-        """
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=True) as temp_file:
-            # Write the code to the temporary file
-            temp_file.write(code_string)
-            temp_file.flush()
-            temp_file_path = Path(temp_file.name)
+    NAME = "create_file"
+    DESCRIPTION = (
+        "Create a new file in the codebase. The path must be the full path to the new file you want to create. "
+        "You must provide also the full contents of the new file."
+    )
+    PARAMETERS = [
+        Parameter(
+            name="file_path",
+            type="string",
+            description="The full path to the new file to create. e.g., 'data/new_file.py'",
+        ),
+        Parameter(
+            name="file_contents",
+            type="string",
+            description="The full contents of the new file.",
+        ),
+    ]
 
-            # Run Ruff on the temporary file
-            result = subprocess.run(
-                ["ruff", "check", str(temp_file_path), "--output-format=json"],
-                capture_output=True,
-                text=True,
+    def _validate_argument_values(self, agent: Agent):
+        """Check that the file does not already exist in the codebase."""
+        file_path = self.arguments["file_path"]
+
+        if file_path in agent.codebase.get_relative_file_paths():
+            raise ValueError(
+                f"The file '{file_path}' already exists in the codebase. "
+                f"The files in the codebase are:\n{agent.codebase.formatted_relative_file_paths()}"
             )
 
-            # Parse the JSON output
-            if result.stdout:
-                violations = json.loads(result.stdout)
-                formatted_violations = [
-                    f"{v['location']['row']}:{v['location']['column']} - {v['code']}: {v['message']}"
-                    for v in violations
-                ]
-            else:
-                formatted_violations = []
+    def _use(self, agent: Agent) -> Observation:
+        """Write the new file to the codebase."""
+        file_path = self.arguments["file_path"]
+        file_contents = self.arguments["file_contents"]
 
-        return formatted_violations
+        agent.codebase.add_file(file_path, file_contents)
+
+        # Open the new file in the file editor
+        agent.open_file_relative_path = file_path
+
+        if file_path.endswith(".py"):
+            python_file = True
+            lint_results = lint_code(file_contents)
+        else:
+            lint_results = None
+
+        # If there were linting issues, provide a review comment
+        if lint_results:
+            lint_results_bulleted = "\n* ".join(lint_results)
+            review_comment = (
+                f"The code you provided for the new file has the following issues:\n* {lint_results_bulleted}\n\n"
+                f"Please address these issues before continuing."
+            )
+        else:
+            review_comment = None
+
+        observation_description = (
+            f"Created a new file '{file_path}', and opened it in the file editor.\n"
+            f"Contents of {file_path}:\n```{'python' if python_file else ""}\n{file_contents}\n```"
+        )
+
+        summarised_observation_description = f"Created a new file '{file_path}'"
+
+        observation = Observation(
+            observation_description=observation_description,
+            summarised_observation_description=summarised_observation_description,
+            file_viewer_changed=True,
+            file_viewer_new_content=file_contents,
+            review_comment=review_comment,
+        )
+
+        return observation
 
 
 class RunPythonScriptTool(Tool):
@@ -379,5 +419,6 @@ class CompleteTaskTool(Tool):
 
 ToolFactory.register_tool(OpenFileTool)
 ToolFactory.register_tool(EditFileTool)
+ToolFactory.register_tool(CreateFileTool)
 ToolFactory.register_tool(RunPythonScriptTool)
 ToolFactory.register_tool(CompleteTaskTool)
