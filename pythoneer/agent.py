@@ -96,10 +96,15 @@ class Agent:
         self.next_step_prompt_template = prompts["next_step_prompt_template"]
 
     def run(self):
-        while not self.task_completed:
-            self.step()
-
-        self.finish()
+        error = False
+        try:
+            while not self.task_completed:
+                self.step()
+        except Exception as exc:
+            logger.exception(f"An error occurred: {exc}")
+            error = True
+        finally:
+            self.finish(error)
 
     def step(self):
         self.step_number += 1
@@ -161,7 +166,11 @@ class Agent:
         )
         self.trajectory.add_step(trajectory_step)
 
-    def finish(self):
-        logger.info(f"Task completed in {self.step_number} steps.")
+    def finish(self, error: bool = False):
+        if error:
+            logger.info("Task failed.")
+        else:
+            logger.info(f"Task completed in {self.step_number} steps.")
+
         self.codebase.write_codebase_to_disk(self.workspace_path)
         self.trajectory.write_to_disk(self.workspace_path)
