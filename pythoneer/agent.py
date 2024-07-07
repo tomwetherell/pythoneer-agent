@@ -1,5 +1,6 @@
 """Coding agent implementation."""
 
+import shutil
 import yaml
 from pathlib import Path
 
@@ -11,7 +12,7 @@ from pythoneer.messages import MessageLog, InstanceMessage, AssistantMessage, Us
 from pythoneer.trajectory import Trajectory, TrajectoryStep
 from pythoneer.llm import parse_tool_use_response
 from pythoneer.tools.factory import ToolFactory
-from pythoneer.tools.tools import OpenFileTool, EditFileTool, RunPythonScriptTool, CompleteTaskTool
+from pythoneer.tools.tools import OpenFileTool, EditFileTool, CompleteTaskTool
 from pythoneer.paths import PY2_TO_PY3_PROMPT_PATH, PYTORCH_TO_TENSORFLOW_PROMPT_PATH
 
 
@@ -29,7 +30,7 @@ class Agent:
     TASKS = ("py2_to_py3", "pytorch_to_tensorflow", "tensorflow_to_pytorch")
     """Tasks that the agent can complete."""
 
-    TOOLS = (OpenFileTool, EditFileTool, RunPythonScriptTool, CompleteTaskTool)
+    TOOLS = (OpenFileTool, EditFileTool, CompleteTaskTool)
     """Tools available to the agent."""
 
     def __init__(
@@ -62,7 +63,11 @@ class Agent:
             raise ValueError(f"Task must be one of {self.TASKS}, not {task}.")
         self.task = task
 
+        # Set up the agent's workspace directory
         self.workspace_path = Path(workspace_path)
+        if self.workspace_path.exists() and self.workspace_path.is_dir():
+            shutil.rmtree(workspace_path)
+        self.workspace_path.mkdir(parents=True, exist_ok=True)
 
         self.codebase = Codebase(codebase_path)
         self.message_log = MessageLog()
