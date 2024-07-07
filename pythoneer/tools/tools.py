@@ -72,7 +72,10 @@ class EditFileTool(Tool):
     """Tool to edit the contents of a file."""
 
     NAME = "edit_file"
-    DESCRIPTION = "Edit the contents of the file open in your file editor."
+    DESCRIPTION = (
+        "Edit the contents of the file open in your file editor. Important: this tool should be "
+        "used after you have opened the file you want to edit using the 'open_file' tool."
+    )
     PARAMETERS = [
         Parameter(
             name="commit_message",
@@ -104,6 +107,12 @@ class EditFileTool(Tool):
         commit_message = self.arguments["commit_message"]
         new_contents = self.arguments["new_file_contents"]
         file_path = agent.open_file_relative_path
+
+        if new_contents.startswith("```python"):
+            new_contents = new_contents[9:]
+        if new_contents.endswith("```"):
+            new_contents = new_contents[:-3]
+        new_contents = new_contents.lstrip()
 
         agent.codebase.edit_file(file_path, new_contents)
 
