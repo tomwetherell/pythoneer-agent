@@ -144,11 +144,15 @@ class Agent:
             open_file=self.open_file_relative_path
         )
 
+        if observation.review_comment:
+            logger.info(f"🔍 Review comment:\n{observation.review_comment}")
+
         user_message = UserMessage(
             tool_id=response.tool_id,
             observation=observation.observation_description,
             summarised_observation=observation.summarised_observation_description,
             next_step_prompt=next_step_prompt,
+            review_comment=observation.review_comment,
         )
         self.message_log.add_message(user_message)
         logger.info(f"🐼 User message:\n{user_message.return_json_message()}")
@@ -168,6 +172,7 @@ class Agent:
             file_viewer_changed=observation.file_viewer_changed,
             open_file_name=self.open_file_relative_path,
             file_viewer_content=file_viewer_content,
+            review_comment=observation.review_comment,
         )
         self.trajectory.add_step(trajectory_step)
 

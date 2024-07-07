@@ -3,6 +3,7 @@
 
 # TODO: Should this be a base class instead? Could have an observation type for each type of
 # tool. Then, the logic for summarising the observation could be in the observation subclass.
+# TODO: This could be a dataclass.
 class Observation:
     """Class to represent an observation from tool use."""
 
@@ -14,6 +15,7 @@ class Observation:
         terminal_content: str | None = None,
         file_viewer_changed: bool = False,
         file_viewer_new_content: str | None = None,
+        review_comment: str | None = None,
     ):
         """
         Initalise the Observation object.
@@ -37,6 +39,9 @@ class Observation:
 
         file_viewer_new_content : str
             The new contents of the file viewer, if applicable.
+
+        review_comment : str | None
+            A comment from the reviewer about the observation.
         """
         self.observation_description = observation_description
         self.summarised_observation_description = summarised_observation_description
@@ -46,3 +51,5 @@ class Observation:
 
         self.file_viewer_changed = file_viewer_changed
         self.file_viewer_new_content = file_viewer_new_content
+
+        self.review_comment = review_comment
