@@ -29,11 +29,13 @@ class Codebase:
         # Add all source files in the codebase to the codebase object
         for file_path in self.codebase_path.glob(self.PATTERN):
             relative_file_path = str(file_path.relative_to(self.codebase_path))
-            self.add_file(relative_file_path)
+            file_path = self.codebase_path / relative_file_path
+            file_contents = file_path.read_text()
+            self.add_file(relative_file_path, file_contents)
 
-    def add_file(self, relative_file_path: str):
+    def add_file(self, relative_file_path: str, file_contents: str):
         """Add a new source file to the codebase."""
-        source_file = SourceFile(self.codebase_path, relative_file_path)
+        source_file = SourceFile(relative_file_path, file_contents)
         self.files[relative_file_path] = source_file
 
     def retrieve_file(self, relative_file_path: str) -> SourceFile:
@@ -94,27 +96,25 @@ class SourceFile:
 
     def __init__(
         self,
-        codebase_path: str | Path,
         relative_file_path: str,
+        contents: str,
     ):
         """
         Initalise the SourceFile object.
 
         Parameters
         ----------
-        codebase_path : str | Path
-            Full path to the root of the codebase.
-
         relative_file_path : str
             Path of the source file relative to the root of the codebase.
+
+        contents : str
+            The contents of the source file.
         """
-        self.codebase_path = Path(codebase_path)
         self._relative_file_path = relative_file_path
-        self.file_path = self.codebase_path / self.relative_file_path
-        self._file_name = self.file_path.name
+        self._file_name = Path(self._relative_file_path).name
 
         self.versions = []
-        self.versions.append(self.file_path.read_text())
+        self.versions.append(contents)
 
     def update_contents(self, contents: str):
         """Add a new version of the source file."""
