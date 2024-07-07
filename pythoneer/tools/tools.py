@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import json
 import subprocess
 import tempfile
 from pathlib import Path
@@ -99,7 +100,6 @@ class EditFileTool(Tool):
     ]
 
     def _validate_argument_values(self, agent: Agent):
-        """TODO: Run linter on the new contents of the file."""
         pass
 
     def _use(self, agent: Agent) -> Observation:
@@ -116,6 +116,16 @@ class EditFileTool(Tool):
 
         agent.codebase.edit_file(file_path, new_contents)
 
+        lint_results = self._lint_code(new_contents)
+        if lint_results:
+            lint_results_bulleted = "\n* ".join(lint_results)
+            review_comment = (
+                f"The code you provided has the following issues:\n* {lint_results_bulleted}\n\n"
+                f"Please address these issues before continuing."
+            )
+        else:
+            review_comment = None
+
         observation_description = (
             f"Edited the file '{file_path}'.\nCommit message: '{commit_message}'.\n"
             f"New contents of {file_path}: \n```python\n{new_contents}\n```"
@@ -130,9 +140,51 @@ class EditFileTool(Tool):
             summarised_observation_description=summarised_observation_description,
             file_viewer_changed=True,
             file_viewer_new_content=new_contents,
+            review_comment=review_comment,
         )
 
         return observation
+
+    @staticmethod
+    def _lint_code(code_string):
+        """
+        Lint the code block using Ruff.
+
+        Parameters
+        ----------
+        code_string : str
+            The code string to lint.
+
+        Returns
+        -------
+        formatted_violations : list[str]
+            A list of formatted violations, where each violation is a string in the format
+            'line:column - code: message'.
+        """
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=True) as temp_file:
+            # Write the code to the temporary file
+            temp_file.write(code_string)
+            temp_file.flush()
+            temp_file_path = Path(temp_file.name)
+
+            # Run Ruff on the temporary file
+            result = subprocess.run(
+                ["ruff", "check", str(temp_file_path), "--output-format=json"],
+                capture_output=True,
+                text=True,
+            )
+
+            # Parse the JSON output
+            if result.stdout:
+                violations = json.loads(result.stdout)
+                formatted_violations = [
+                    f"{v['location']['row']}:{v['location']['column']} - {v['code']}: {v['message']}"
+                    for v in violations
+                ]
+            else:
+                formatted_violations = []
+
+        return formatted_violations
 
 
 class RunPythonScriptTool(Tool):
