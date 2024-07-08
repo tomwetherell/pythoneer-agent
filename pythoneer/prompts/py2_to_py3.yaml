@@ -20,6 +20,18 @@ instance_prompt_template: |-
 
   <advice>
   * You should start by opening a file in your file editor to view it.
+  * To ensure that the functionality of the codebase is preserved when porting, you should first
+    write unit tests for each module in the codebase. After you have written all the unit tests,
+    and before you have started porting the files, run the tests to ensure they all pass.
+  * After porting all of the files, make sure the tests all pass before declaring the task as complete.
+  * Write the unit tests using pytest.
+  * Write the unit tests in a `/tests` directory. The `/tests` directory should mirror the main codebase package directory
+    (e.g., if writing a unit test for a file with path `<package-name>/data/process.py`, the unit test should be
+    written in a file with path `/tests/data/test_process.py`)
+  * Before creating a unit test for a file, open the file in your file editor. This way, you'll be
+    able to see the contents of the file.
+  * Before running the tests, write the unit tests for ALL of the relevant modules. Don't run the tests
+    after creating each test file.
   </advice>
 
   You currently have no file open in your file editor.
