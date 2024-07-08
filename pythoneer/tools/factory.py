@@ -6,7 +6,7 @@ from pythoneer.tools.base import Tool
 class ToolFactory:
     """A factory for creating tools."""
 
-    TOOL_NAME_TO_CLASS = {}
+    TOOL_NAME_TO_CLASS: dict[str, Tool] = {}
     """
     Mapping of tool names to tool classes. This is populated by the `register_tool`
     method.

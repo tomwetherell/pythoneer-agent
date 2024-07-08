@@ -10,7 +10,6 @@ from pathlib import Path
 
 from pythoneer.tools.observations import Observation
 from pythoneer.tools.base import Tool, Parameter
-from pythoneer.tools.factory import ToolFactory
 from pythoneer.tools.utils import lint_code
 
 
@@ -560,11 +559,3 @@ class CompleteTaskTool(Tool):
         )
 
         return observation
-
-
-ToolFactory.register_tool(OpenFileTool)
-ToolFactory.register_tool(EditFileTool)
-ToolFactory.register_tool(CreateFileTool)
-ToolFactory.register_tool(RunPythonScriptTool)
-ToolFactory.register_tool(RunAllTestsTool)
-ToolFactory.register_tool(CompleteTaskTool)
