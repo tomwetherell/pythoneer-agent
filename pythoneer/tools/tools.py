@@ -1,8 +1,9 @@
-"""Tools."""
+"""Tools that the agent can use to complete tasks."""
 
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -164,7 +165,10 @@ class CreateFileTool(Tool):
         Parameter(
             name="file_path",
             type="string",
-            description="The full path to the new file to create. e.g., 'data/new_file.py'",
+            description=(
+                "The full path to the new file to create, e.g., 'data/new_file.py'. "
+                "If the directory does not exist, it will be created."
+            ),
         ),
         Parameter(
             name="file_contents",
@@ -211,7 +215,8 @@ class CreateFileTool(Tool):
 
         observation_description = (
             f"Created a new file '{file_path}', and opened it in the file editor.\n"
-            f"Contents of {file_path}:\n```{'python' if python_file else ""}\n{file_contents}\n```"
+            f"The codebase now contains the following files:\n{agent.codebase.formatted_relative_file_paths()}\n\n"
+            f"Contents of {file_path}:\n```{'python' if python_file else ''}\n{file_contents}\n```"
         )
 
         summarised_observation_description = f"Created a new file '{file_path}'"
@@ -289,6 +294,7 @@ class RunPythonScriptTool(Tool):
     def _use(self, agent: Agent) -> Observation:
         """Run the Python script."""
         # TODO: Add docstring explaining use of Docker.
+        # TODO: Fix this function, similar to the RunAllTestsTool function.
         script_path = self.arguments["script_path"]
         script_arguments = self.arguments.get("script_arguments", "")
         environment = self.arguments["environment"]
@@ -310,22 +316,23 @@ class RunPythonScriptTool(Tool):
                 docker_image,
                 "bash",
                 "-c",
-                f"python -B {script_path} {script_arguments} > /workspace/stdout.txt 2> /workspace/stderr.txt",
+                f"pip install . && python -B {script_path} {script_arguments} > /workspace/stdout.txt 2> /workspace/stderr.txt",
             ]
 
             try:
                 subprocess.run(command, check=True)
-            except subprocess.CalledProcessError as exc:
-                stdout = ""
-                stderr = f"Error running script: {exc}"
-            else:
-                stdout_path = Path(temp_dir) / "stdout.txt"
-                stderr_path = Path(temp_dir) / "stderr.txt"
+            except subprocess.CalledProcessError:
+                # stdout = ""
+                # stderr = f"Error running script: {exc}"
+                pass
 
-                with stdout_path.open("r") as fh:
-                    stdout = fh.read()
-                with stderr_path.open("r") as fh:
-                    stderr = fh.read()
+            stdout_path = Path(temp_dir) / "stdout.txt"
+            stderr_path = Path(temp_dir) / "stderr.txt"
+
+            with stdout_path.open("r") as fh:
+                stdout = fh.read()
+            with stderr_path.open("r") as fh:
+                stderr = fh.read()
 
         observation_description, summarised_observation_description = (
             self._create_observation_description(script_path, environment, stdout, stderr)
@@ -353,6 +360,7 @@ class RunPythonScriptTool(Tool):
         # TODO: Maybe the stdout shouldn't be summarised, as that will stop the agent from
         # comparing the functionality before changes have been made to the functionality after
         # changes have been made.
+        # TODO: Construct this in a more readable way (lots of repetition here).
         if stdout and stderr:
             observation_description = (
                 f"Ran the Python script '{script_path}' in the '{environment}' environment.\n"
@@ -434,40 +442,55 @@ class RunAllTestsTool(Tool):
         environment = self.arguments["environment"]
         docker_image = self.ENVIRONMENT_TO_IMAGE[environment]
 
+        user_id = os.getuid()
+        group_id = os.getgid()
+
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Write the codebase to the temporary directory
             agent.codebase.write_codebase_to_disk(output_path=temp_dir)
+
+            # Create a directory for pip cache and local
+            os.makedirs(os.path.join(temp_dir, "pip_cache"), exist_ok=True)
+            os.makedirs(os.path.join(temp_dir, "local"), exist_ok=True)
 
             command = [
                 "docker",
                 "run",
                 "--rm",
+                "--user",
+                f"{user_id}:{group_id}",
                 "-v",
-                f"{temp_dir}:/workspace",  # Mount the temporary directory to /workspace in the container
+                f"{temp_dir}:/workspace",
                 "-w",
-                "/workspace/codebase",  # Set the working directory to the codebase
+                "/workspace/codebase",
+                "-e",
+                "HOME=/workspace",
+                "-e",
+                "PIP_CACHE_DIR=/workspace/pip_cache",
+                "-e",
+                "PYTHONUSERBASE=/workspace/local",
                 docker_image,
                 "bash",
                 "-c",
-                "pytest > /workspace/stdout.txt 2> /workspace/stderr.txt",
+                "pip install --no-python-version-warning --disable-pip-version-check --user -q . && PYTHONPATH=/workspace/local/lib/python2.7/site-packages pytest > /workspace/stdout.txt 2> /workspace/stderr.txt",
             ]
 
             try:
                 subprocess.run(command, check=True)
-            except subprocess.CalledProcessError as exc:
-                stdout = ""
-                stderr = f"Error running tests: {exc}"
+            except subprocess.CalledProcessError:
+                tests_passed = False
             else:
-                stdout_path = Path(temp_dir) / "stdout.txt"
-                stderr_path = Path(temp_dir) / "stderr.txt"
+                tests_passed = True
 
-                with stdout_path.open("r") as fh:
-                    stdout = fh.read()
-                with stderr_path.open("r") as fh:
-                    stderr = fh.read()
+            stdout_path = Path(temp_dir) / "stdout.txt"
+            stderr_path = Path(temp_dir) / "stderr.txt"
+
+            with stdout_path.open("r") as fh:
+                stdout = fh.read()
+            with stderr_path.open("r") as fh:
+                stderr = fh.read()
 
         observation_description, summarised_observation_description = (
-            self._create_observation_description(environment, stdout, stderr)
+            self._create_observation_description(environment, stdout, stderr, tests_passed)
         )
 
         terminal_output = True
@@ -486,44 +509,33 @@ class RunAllTestsTool(Tool):
         return observation
 
     def _create_observation_description(
-        self, environment: str, stdout: str, stderr: str
+        self, environment: str, stdout: str, stderr: str, tests_passed: bool
     ) -> tuple[str, str]:
         """Create the observation description and summarised observation description."""
-        if stdout and stderr:
+        if tests_passed:
             observation_description = (
                 f"Ran all tests in the codebase in the '{environment}' environment.\n"
-                f"stdout:\n```\n{stdout}\n```\nstderr:\n```\n{stderr}\n```"
-            )
-            summarised_observation_description = (
-                f"Ran all tests in the codebase in the '{environment}' environment."
-            )
-
-        elif stdout:
-            observation_description = (
-                f"Ran all tests in the codebase in the '{environment}' environment.\n"
-                f"stdout:\n```\n{stdout}\n```"
-            )
-            summarised_observation_description = (
-                f"Ran all tests in the codebase in the '{environment}' environment."
                 f"All tests ran successfully with no errors."
             )
-
-        elif stderr:
-            observation_description = (
-                f"Ran all tests in the codebase in the '{environment}' environment.\n"
-                f"stderr:\n```\n{stderr}\n```"
-            )
             summarised_observation_description = (
-                f"Ran all tests in the codebase in the '{environment}' environment."
-                f"There were errors when running the tests."
+                f"Ran all tests in the codebase in the '{environment}' environment.\n"
+                f"All tests ran successfully with no errors."
             )
 
         else:
             observation_description = (
-                f"Ran all tests in the codebase in the '{environment}' environment."
-                f"All tests ran successfully with no output."
+                f"Ran all tests in the codebase in the '{environment}' environment.\n"
+                f"There were errors when running the tests."
             )
-            summarised_observation_description = observation_description
+            summarised_observation_description = (
+                f"Ran all tests in the codebase in the '{environment}' environment.\n"
+                f"There were errors when running the tests."
+            )
+
+            if stdout:
+                observation_description += f"\STDOUT:\n```\n{stdout}\n```"
+            if stderr:
+                observation_description += f"\nSTDERR:\n```\n{stderr}\n```"
 
         return observation_description, summarised_observation_description
 
@@ -554,4 +566,5 @@ ToolFactory.register_tool(OpenFileTool)
 ToolFactory.register_tool(EditFileTool)
 ToolFactory.register_tool(CreateFileTool)
 ToolFactory.register_tool(RunPythonScriptTool)
+ToolFactory.register_tool(RunAllTestsTool)
 ToolFactory.register_tool(CompleteTaskTool)
