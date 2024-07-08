@@ -29,6 +29,15 @@ Anthropic language model to use.
 See https://docs.anthropic.com/en/docs/about-claude/models for details and options.
 """
 
+SUMMARISE_BEFORE_LAST = 16
+"""
+The number of messages to show in full before summarising the rest.
+
+The most recent `SUMMARISE_BEFORE_LAST` messages will be shown in full, and the rest will be
+summarised. This is useful for long tasks with many messages, for efficency and to ensure
+that the agent pays attention to the most recent messages.
+"""
+
 
 class Agent:
     """Coding agent."""
@@ -123,7 +132,9 @@ class Agent:
     def step(self):
         self.step_number += 1
 
-        messages = self.message_log.return_messages_list()
+        messages = self.message_log.return_messages_list(
+            summarise_before_last=SUMMARISE_BEFORE_LAST
+        )
         tool_descriptions = [tool.json_description() for tool in self.TOOLS]
 
         response = anthropic.Anthropic().messages.create(
