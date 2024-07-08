@@ -35,9 +35,9 @@ prompts:
     <advice>
     * You should start by opening a file in your file editor to view it.
     * Before editing a file, make sure that it is currently open in your file editor. Otherwise,
-      accidentally edit the wrong file!
+      you will accidentally edit the wrong file!
     * You must always provide a tool use.
-    * Make sure you've considered each file in the codebase before declaring the task as done (don't want to leave any pytorch code).
+    * Make sure you've considered each file in the codebase before declaring the task as done (don't want to leave any PyTorch code).
     </advice>
 
     You currently have no file open in your file editor.
