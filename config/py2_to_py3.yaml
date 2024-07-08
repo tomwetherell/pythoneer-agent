@@ -9,6 +9,7 @@ agent:
     - "open_file"
     - "edit_file"
     - "complete_task"
+
 prompts:
   system_prompt: |-
     <setting>
