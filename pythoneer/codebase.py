@@ -9,12 +9,12 @@ from pathlib import Path
 class Codebase:
     """Class to represent a codebase."""
 
-    PATTERN = "**/*.py"
-    """Pattern to match source files to include in the codebase."""
+    PATTERNS = ["**/*.py", "**/*.toml"]
+    """Patterns to match source files to include in the codebase."""
 
     def __init__(self, codebase_path: str | Path):
         """
-        Initalise the Codebase object.
+        Initialise the Codebase object.
 
         Parameters
         ----------
@@ -27,11 +27,11 @@ class Codebase:
         self.files = {}
 
         # Add all source files in the codebase to the codebase object
-        for file_path in self.codebase_path.glob(self.PATTERN):
-            relative_file_path = str(file_path.relative_to(self.codebase_path))
-            file_path = self.codebase_path / relative_file_path
-            file_contents = file_path.read_text()
-            self.add_file(relative_file_path, file_contents)
+        for pattern in self.PATTERNS:
+            for file_path in self.codebase_path.glob(pattern):
+                relative_file_path = file_path.relative_to(self.codebase_path)
+                file_contents = file_path.read_text()
+                self.add_file(str(relative_file_path), file_contents)
 
     def add_file(self, relative_file_path: str, file_contents: str):
         """Add a new source file to the codebase."""
