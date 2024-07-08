@@ -11,72 +11,45 @@ from pythoneer.codebase import Codebase
 from pythoneer.messages import MessageLog, InstanceMessage, AssistantMessage, UserMessage
 from pythoneer.trajectory import Trajectory, TrajectoryStep
 from pythoneer.llm import parse_tool_use_response
-from pythoneer.tools.factory import ToolFactory
-from pythoneer.tools.tools import (
-    OpenFileTool,
-    EditFileTool,
-    CreateFileTool,
-    RunAllTestsTool,
-    CompleteTaskTool,
-)
-from pythoneer.paths import PY2_TO_PY3_PROMPT_PATH, PYTORCH_TO_TENSORFLOW_PROMPT_PATH
-
-
-MODEL = "claude-3-sonnet-20240229"
-"""
-Anthropic language model to use.
-
-See https://docs.anthropic.com/en/docs/about-claude/models for details and options.
-"""
-
-SUMMARISE_BEFORE_LAST = 16
-"""
-The number of messages to show in full before summarising the rest.
-
-The most recent `SUMMARISE_BEFORE_LAST` messages will be shown in full, and the rest will be
-summarised. This is useful for long tasks with many messages, for efficency and to ensure
-that the agent pays attention to the most recent messages.
-"""
+from pythoneer.tools import register_all_tools, ToolFactory
 
 
 class Agent:
     """Coding agent."""
 
-    TASKS = ("py2_to_py3", "pytorch_to_tensorflow", "tensorflow_to_pytorch")
-    """Tasks that the agent can complete."""
-
-    TOOLS = (OpenFileTool, EditFileTool, CreateFileTool, RunAllTestsTool, CompleteTaskTool)
-    """Tools available to the agent."""
-
     def __init__(
         self,
+        config_file: str | Path,
         codebase_path: str | Path,
         workspace_path: str | Path,
-        task: str,
     ):
         """
         Initialise the agent.
 
         Parameters
         ----------
+        config_file : str | Path
+            Path to the config file for the agent. The config file defines the task, the
+            agent's parameters, the tools available to the agent, and the prompts. See the
+            `/config` directory for examples.
+
         codebase_path : str | Path
             Full path to the root of the codebase to work on.
 
         workspace_path : str | Path
             Full path to the agent's workspace directory. This is where the agent will save
             the modified codebase, and write any other files that it needs to.
-
-        task : str
-            The task that the agent should complete. Must be one of `Agent.TASKS`.
-
-        Raises
-        ------
-        ValueError
-            If `task` is not one of `Agent.TASKS`.
         """
-        if task not in self.TASKS:
-            raise ValueError(f"Task must be one of {self.TASKS}, not {task}.")
-        self.task = task
+        with open(config_file) as fh:
+            self.config = yaml.safe_load(fh)
+
+        self.model = self.config["model"]["name"]
+
+        self.tools = self.config["agent"]["tools"]
+        self.summarise_before_last = self.config["agent"]["summarise_before_last"]
+
+        # Register the tools
+        register_all_tools()
 
         # Set up the agent's workspace directory
         self.workspace_path = Path(workspace_path)
@@ -101,19 +74,11 @@ class Agent:
 
     def _load_prompts(self):
         """Load the prompts from the prompts file corresponding to the task."""
-        if self.task == "py2_to_py3":
-            prompts_path = PY2_TO_PY3_PROMPT_PATH
-        elif self.task == "pytorch_to_tensorflow":
-            prompts_path = PYTORCH_TO_TENSORFLOW_PROMPT_PATH
-
-        with open(prompts_path) as fh:
-            prompts = yaml.safe_load(fh)
-
-        self.system_prompt = prompts["system_prompt"]
-        self.instance_prompt = prompts["instance_prompt_template"].format(
+        self.system_prompt = self.config["prompts"]["system_prompt"]
+        self.instance_prompt = self.config["prompts"]["instance_prompt_template"].format(
             codebase_files_list=self.codebase.formatted_relative_file_paths()
         )
-        self.next_step_prompt_template = prompts["next_step_prompt_template"]
+        self.next_step_prompt_template = self.config["prompts"]["next_step_prompt_template"]
 
         logger.info(f"📝 System prompt:\n{self.system_prompt}")
         logger.info(f"📝 Instance prompt:\n{self.instance_prompt}")
@@ -133,12 +98,14 @@ class Agent:
         self.step_number += 1
 
         messages = self.message_log.return_messages_list(
-            summarise_before_last=SUMMARISE_BEFORE_LAST
+            summarise_before_last=self.summarise_before_last
         )
-        tool_descriptions = [tool.json_description() for tool in self.TOOLS]
+        tool_descriptions = [
+            ToolFactory.TOOL_NAME_TO_CLASS[tool_name].json_description() for tool_name in self.tools
+        ]
 
         response = anthropic.Anthropic().messages.create(
-            model=MODEL,
+            model=self.model,
             messages=messages,
             max_tokens=2056,
             system=self.system_prompt,
