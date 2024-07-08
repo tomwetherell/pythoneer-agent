@@ -13,6 +13,18 @@ instance_prompt_template: |-
   clearly, opening source files and making any required edits.
   </task>
 
+  <plan>
+  In general, you should follow these steps to complete the task:
+    1. Write a test file for each source file in the codebase.
+    2. After writing all of the tests, run them all to confirm that they work with the current
+       Python 2 codebase. If any tests fail, then you'll need to modify the failing test.
+    3. Port the codebase to Python 3.
+    4. Re-run all of the tests to confirm that they still pass (this ensures that the functionality
+       of the codebase has been preserved). If any tests fail, then modify the source code.
+    5. Once you're happy that you've converted the codebase to Python 3, and all of the tests
+       are passing, you can declare the task as complete.
+  </plan>
+
   <codebase>
   The codebase contains the following files:
   {codebase_files_list}
@@ -20,18 +32,15 @@ instance_prompt_template: |-
 
   <advice>
   * You should start by opening a file in your file editor to view it.
-  * To ensure that the functionality of the codebase is preserved when porting, you should first
-    write unit tests for each module in the codebase. After you have written all the unit tests,
-    and before you have started porting the files, run the tests to ensure they all pass.
-  * After porting all of the files, make sure the tests all pass before declaring the task as complete.
-  * Write the unit tests using pytest.
+  * Write the unit tests using `pytest`.
   * Write the unit tests in a `/tests` directory. The `/tests` directory should mirror the main codebase package directory
     (e.g., if writing a unit test for a file with path `<package-name>/data/process.py`, the unit test should be
-    written in a file with path `/tests/data/test_process.py`)
+    written in a file with path `/tests/data/test_process.py`).
   * Before creating a unit test for a file, open the file in your file editor. This way, you'll be
     able to see the contents of the file.
-  * Before running the tests, write the unit tests for ALL of the relevant modules. Don't run the tests
-    after creating each test file.
+  * In Python 2, you can use the `mock` library. However, this should be replaced with `unittest.mock` when porting.
+  * Begin porting ONLY AFTER you have written unit tests for all the relevant files.
+  * Use Python 3 best practises when porting (e.g., f-strings)
   </advice>
 
   You currently have no file open in your file editor.
