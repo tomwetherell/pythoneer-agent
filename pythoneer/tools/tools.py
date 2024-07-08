@@ -470,7 +470,7 @@ class RunAllTestsTool(Tool):
                 docker_image,
                 "bash",
                 "-c",
-                "pip install --no-python-version-warning --disable-pip-version-check --user -q . && PYTHONPATH=/workspace/local/lib/python2.7/site-packages pytest > /workspace/stdout.txt 2> /workspace/stderr.txt",
+                "pip install --no-python-version-warning --disable-pip-version-check --user -q . && pytest > /workspace/stdout.txt 2> /workspace/stderr.txt",
             ]
 
             try:
