@@ -2,3 +2,4 @@ FROM python:2.7
 WORKDIR /workspace
 
 RUN pip install pytest==4.6.11
+RUN pip install mock==3.0.5
