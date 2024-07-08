@@ -12,7 +12,13 @@ from pythoneer.messages import MessageLog, InstanceMessage, AssistantMessage, Us
 from pythoneer.trajectory import Trajectory, TrajectoryStep
 from pythoneer.llm import parse_tool_use_response
 from pythoneer.tools.factory import ToolFactory
-from pythoneer.tools.tools import OpenFileTool, EditFileTool, CompleteTaskTool
+from pythoneer.tools.tools import (
+    OpenFileTool,
+    EditFileTool,
+    CreateFileTool,
+    RunAllTestsTool,
+    CompleteTaskTool,
+)
 from pythoneer.paths import PY2_TO_PY3_PROMPT_PATH, PYTORCH_TO_TENSORFLOW_PROMPT_PATH
 
 
@@ -23,6 +29,15 @@ Anthropic language model to use.
 See https://docs.anthropic.com/en/docs/about-claude/models for details and options.
 """
 
+SUMMARISE_BEFORE_LAST = 16
+"""
+The number of messages to show in full before summarising the rest.
+
+The most recent `SUMMARISE_BEFORE_LAST` messages will be shown in full, and the rest will be
+summarised. This is useful for long tasks with many messages, for efficency and to ensure
+that the agent pays attention to the most recent messages.
+"""
+
 
 class Agent:
     """Coding agent."""
@@ -30,7 +45,7 @@ class Agent:
     TASKS = ("py2_to_py3", "pytorch_to_tensorflow", "tensorflow_to_pytorch")
     """Tasks that the agent can complete."""
 
-    TOOLS = (OpenFileTool, EditFileTool, CompleteTaskTool)
+    TOOLS = (OpenFileTool, EditFileTool, CreateFileTool, RunAllTestsTool, CompleteTaskTool)
     """Tools available to the agent."""
 
     def __init__(
@@ -100,6 +115,9 @@ class Agent:
         )
         self.next_step_prompt_template = prompts["next_step_prompt_template"]
 
+        logger.info(f"📝 System prompt:\n{self.system_prompt}")
+        logger.info(f"📝 Instance prompt:\n{self.instance_prompt}")
+
     def run(self):
         error = False
         try:
@@ -114,7 +132,9 @@ class Agent:
     def step(self):
         self.step_number += 1
 
-        messages = self.message_log.return_messages_list()
+        messages = self.message_log.return_messages_list(
+            summarise_before_last=SUMMARISE_BEFORE_LAST
+        )
         tool_descriptions = [tool.json_description() for tool in self.TOOLS]
 
         response = anthropic.Anthropic().messages.create(
