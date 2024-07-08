@@ -6,11 +6,11 @@ agent:
   task:
     - "py2_to_py3"
   tools:
-    - "OpenFileTool"
-    - "EditFileTool"
-    - "CreateFileTool"
-    - "RunAllTestsTool"
-    - "CompleteTaskTool"
+    - "open_file"
+    - "edit_file"
+    - "create_file"
+    - "run_all_tests"
+    - "complete_task"
 
 prompts:
   system_prompt: |-

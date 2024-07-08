@@ -4,11 +4,11 @@ model:
 agent:
   summarise_before_last: 16
   task:
-    - "py2_to_py3"
+    - "pytorch_to_tensorflow"
   tools:
-    - "OpenFileTool"
-    - "EditFileTool"
-    - "CompleteTaskTool"
+    - "open_file"
+    - "edit_file"
+    - "complete_task"
 
 prompts:
   system_prompt: |-
