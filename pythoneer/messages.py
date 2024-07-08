@@ -25,14 +25,21 @@ class MessageLog:
         Parameters
         ----------
         summarise_before_last : int | None
-            Summarise the tool arguments (for assistant messages) and observations (for
-            user messages) for all messages except the last `summarise_before_last`.
-            If None, summarise no messages.
+            The number of messages to show in full before summarising the rest.
+            The tool arguments (for assistant messages) and observations (for
+            user messages) for all messages except the last `summarise_before_last` will be
+            summarised. If None, no messages will be summarised (all will be shown in full).
 
         Returns
         -------
         messages_list : list[dict]
             A list of json-formatted messages.
+
+        Notes
+        -----
+        The most recent `summarise_before_last` messages will be shown in full, and the rest will
+        be summarised. This is useful for long tasks with many messages - for efficency and to
+        ensure that the agent pays most attention to the most recent messages.
         """
         num_messages = len(self.messages)
         if summarise_before_last is None:
