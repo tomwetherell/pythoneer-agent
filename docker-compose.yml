@@ -27,3 +27,16 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+
+  tensorflow:
+    build:
+      context: .
+      dockerfile: docker/DockerfileTensorFlow
+    image: tensorflow-base:latest
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
