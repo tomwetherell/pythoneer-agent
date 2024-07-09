@@ -1,0 +1,3 @@
+FROM tensorflow/tensorflow:2.12.0-gpu
+ENV TF_CPP_MIN_LOG_LEVEL=3
+WORKDIR /workspace

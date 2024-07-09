@@ -14,3 +14,29 @@ services:
     image: python3-base:latest
     environment:
       - PYTHONDONTWRITEBYTECODE=1
+
+  pytorch:
+    build:
+      context: .
+      dockerfile: docker/DockerfilePyTorch
+    image: pytorch-base:latest
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  tensorflow:
+    build:
+      context: .
+      dockerfile: docker/DockerfileTensorFlow
+    image: tensorflow-base:latest
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

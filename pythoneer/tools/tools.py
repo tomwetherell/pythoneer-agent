@@ -108,8 +108,9 @@ class EditFileTool(Tool):
         new_contents = self.arguments["new_file_contents"]
         file_path = agent.open_file_relative_path
 
-        if new_contents.startswith("```python"):
-            new_contents = new_contents[9:]
+        if new_contents.startswith("```"):
+            # Remove up until and including the newline after the first ```
+            new_contents = new_contents[new_contents.find("\n") + 1 :]
         if new_contents.endswith("```"):
             new_contents = new_contents[:-3]
         new_contents = new_contents.lstrip()
@@ -117,9 +118,10 @@ class EditFileTool(Tool):
         agent.codebase.edit_file(file_path, new_contents)
 
         if file_path.endswith(".py"):
-            lint_results = lint_code(new_contents)
             python_file = True
+            lint_results = lint_code(new_contents)
         else:
+            python_file = False
             lint_results = None
 
         # If there were linting issues, provide a review comment
@@ -191,6 +193,13 @@ class CreateFileTool(Tool):
         file_path = self.arguments["file_path"]
         file_contents = self.arguments["file_contents"]
 
+        if file_contents.startswith("```"):
+            # Remove up until and including the newline after the first ```
+            file_contents = file_contents[file_contents.find("\n") + 1 :]
+        if file_contents.endswith("```"):
+            file_contents = file_contents[:-3]
+        file_contents = file_contents.lstrip()
+
         agent.codebase.add_file(file_path, file_contents)
 
         # Open the new file in the file editor
@@ -200,6 +209,7 @@ class CreateFileTool(Tool):
             python_file = True
             lint_results = lint_code(file_contents)
         else:
+            python_file = False
             lint_results = None
 
         # If there were linting issues, provide a review comment
@@ -258,17 +268,22 @@ class RunPythonScriptTool(Tool):
             name="environment",
             type="string",
             description=(
-                "The name of the environment to run the script in, either 'python2' or 'python3'."
-                "The 'python2' environment should be used when running Python 2 scripts, and the "
-                "'python3' environment should be used when running Python 3 scripts."
+                "The name of the environment to run the script in, either 'python2', 'python3'."
+                "'pytorch', or 'tensorflow'. Use cases:\n"
+                "* 'python2': Use when running Python 2 scripts.\n"
+                "* 'python3': Use when running Python 3 scripts.\n"
+                "* 'pytorch': Use when running (Python 3) scripts which require PyTorch.\n"
+                "* 'tensorflow': Use when running (Python 3) scripts which require TensorFlow."
             ),
-            enum=["python2", "python3"],
+            enum=["python2", "python3", "pytorch", "tensorflow"],
         ),
     ]
 
     ENVIRONMENT_TO_IMAGE = {
         "python2": "python2-base:latest",
         "python3": "python3-base:latest",
+        "pytorch": "pytorch-base:latest",
+        "tensorflow": "tensorflow-base:latest",
     }
     """Mapping of environment names to Docker image names."""
 
@@ -293,37 +308,53 @@ class RunPythonScriptTool(Tool):
     def _use(self, agent: Agent) -> Observation:
         """Run the Python script."""
         # TODO: Add docstring explaining use of Docker.
-        # TODO: Fix this function, similar to the RunAllTestsTool function.
         script_path = self.arguments["script_path"]
         script_arguments = self.arguments.get("script_arguments", "")
         environment = self.arguments["environment"]
 
         docker_image = self.ENVIRONMENT_TO_IMAGE[environment]
 
+        user_id = os.getuid()
+        group_id = os.getgid()
+
         with tempfile.TemporaryDirectory() as temp_dir:
             # Write the codebase to the temporary directory
             agent.codebase.write_codebase_to_disk(output_path=temp_dir)
 
+            # Create a directory for pip cache and local
+            os.makedirs(os.path.join(temp_dir, "pip_cache"), exist_ok=True)
+            os.makedirs(os.path.join(temp_dir, "local"), exist_ok=True)
+
             command = [
                 "docker",
                 "run",
+                "--gpus",
+                "all",
                 "--rm",
+                "--user",
+                f"{user_id}:{group_id}",
                 "-v",
-                f"{temp_dir}:/workspace",  # Mount the temporary directory to /workspace in the container
+                f"{temp_dir}:/workspace",
                 "-w",
-                "/workspace/codebase",  # Set the working directory to the codebase
+                "/workspace/codebase",
+                "-e",
+                "HOME=/workspace",
+                "-e",
+                "PIP_CACHE_DIR=/workspace/pip_cache",
+                "-e",
+                "PYTHONUSERBASE=/workspace/local",
                 docker_image,
                 "bash",
                 "-c",
-                f"pip install . && python -B {script_path} {script_arguments} > /workspace/stdout.txt 2> /workspace/stderr.txt",
+                f"pip install --no-warn-script-location --no-python-version-warning --disable-pip-version-check --user -q . && python {script_path} {script_arguments} > /workspace/stdout.txt 2> /workspace/stderr.txt",
             ]
 
             try:
                 subprocess.run(command, check=True)
             except subprocess.CalledProcessError:
-                # stdout = ""
-                # stderr = f"Error running script: {exc}"
-                pass
+                error = True
+            else:
+                error = False
 
             stdout_path = Path(temp_dir) / "stdout.txt"
             stderr_path = Path(temp_dir) / "stderr.txt"
@@ -334,12 +365,17 @@ class RunPythonScriptTool(Tool):
                 stderr = fh.read()
 
         observation_description, summarised_observation_description = (
-            self._create_observation_description(script_path, environment, stdout, stderr)
+            self._create_observation_description(
+                script_path, script_arguments, environment, stdout, stderr, error
+            )
         )
 
         terminal_output = True
-        if stdout or stderr:
-            terminal_contents = f"{stdout}\n{stderr}"
+        terminal_contents = ""
+        if stdout:
+            terminal_contents += f"STDOUT:\n{stdout}\n"
+        elif stderr:
+            terminal_contents += f"STDERR:\n{stderr}\n"
         else:
             terminal_contents = "The script ran successfully with no output."
 
@@ -353,51 +389,28 @@ class RunPythonScriptTool(Tool):
         return observation
 
     def _create_observation_description(
-        self, script_path: str, environment: str, stdout: str, stderr: str
+        self,
+        script_path: str,
+        script_arguments: str,
+        environment: str,
+        stdout: str,
+        stderr: str,
+        error: bool,
     ) -> tuple[str, str]:
         """Create the observation description and summarised observation description."""
-        # TODO: Maybe the stdout shouldn't be summarised, as that will stop the agent from
-        # comparing the functionality before changes have been made to the functionality after
-        # changes have been made.
-        # TODO: Construct this in a more readable way (lots of repetition here).
-        if stdout and stderr:
+        if not error:
             observation_description = (
-                f"Ran the Python script '{script_path}' in the '{environment}' environment.\n"
-                f"stdout:\n```\n{stdout}\n```\nstderr:\n```\n{stderr}\n```"
+                f"Succesfully ran the command '{script_path} {script_arguments}' in the '{environment}' environment without errors.\n"
+                f"STDOUT:\n```\n{stdout}\n```"
             )
-            summarised_observation_description = (
-                f"Ran the Python script '{script_path}' in the '{environment}' environment."
-            )
-
-        elif stdout:
-            observation_description = (
-                f"Ran the Python script '{script_path}' in the '{environment}' environment.\n"
-                f"stdout:\n```\n{stdout}\n```"
-            )
-            summarised_observation_description = (
-                f"Ran the Python script '{script_path}' in the '{environment}' environment."
-                f"The script ran successfully with no errors."
-            )
-
-        elif stderr:
-            observation_description = (
-                f"Ran the Python script '{script_path}' in the '{environment}' environment.\n"
-                f"stderr:\n```\n{stderr}\n```"
-            )
-            summarised_observation_description = (
-                f"Ran the Python script '{script_path}' in the '{environment}' environment."
-                f"The script ran with errors."
-            )
-
+            summarised_observation_description = f"Succesfully ran the command '{script_path} {script_arguments}' in the '{environment}' environment without errors."
         else:
             observation_description = (
-                f"Ran the Python script '{script_path}' in the '{environment}' environment."
-                f"The script ran successfully with no output."
+                f"Error when running the command '{script_path} {script_arguments}' in the '{environment}' environment.\n"
+                f"STDOUT:\n```\n{stdout}\n```\n"
+                f"STDERR:\n```\n{stderr}\n```"
             )
-            summarised_observation_description = (
-                f"Ran the Python script '{script_path}' in the '{environment}' environment."
-                f"The script ran successfully with no output."
-            )
+            summarised_observation_description = f"Error when running the command '{script_path} {script_arguments}' in the '{environment}' environment."
 
         return observation_description, summarised_observation_description
 
@@ -470,7 +483,7 @@ class RunAllTestsTool(Tool):
                 docker_image,
                 "bash",
                 "-c",
-                "pip install --no-python-version-warning --disable-pip-version-check --user -q . && PYTHONPATH=/workspace/local/lib/python2.7/site-packages pytest > /workspace/stdout.txt 2> /workspace/stderr.txt",
+                "pip install --no-python-version-warning --disable-pip-version-check --user -q . && pytest > /workspace/stdout.txt 2> /workspace/stderr.txt",
             ]
 
             try:

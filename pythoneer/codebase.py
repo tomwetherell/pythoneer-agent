@@ -30,8 +30,10 @@ class Codebase:
         for pattern in self.PATTERNS:
             for file_path in self.codebase_path.glob(pattern):
                 relative_file_path = file_path.relative_to(self.codebase_path)
-                file_contents = file_path.read_text()
-                self.add_file(str(relative_file_path), file_contents)
+                # Skip hidden files
+                if not any(part.startswith(".") for part in relative_file_path.parts):
+                    file_contents = file_path.read_text()
+                    self.add_file(str(relative_file_path), file_contents)
 
     def add_file(self, relative_file_path: str, file_contents: str):
         """Add a new source file to the codebase."""
