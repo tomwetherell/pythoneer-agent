@@ -17,10 +17,10 @@ from pathlib import Path
 class Trajectory:
     """Class to represent an agent's trajectory."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.steps: list[TrajectoryStep] = []
 
-    def add_step(self, step: TrajectoryStep):
+    def add_step(self, step: TrajectoryStep) -> None:
         """
         Add a step to the trajectory.
 
@@ -31,7 +31,7 @@ class Trajectory:
         """
         self.steps.append(step)
 
-    def write_to_disk(self, output_dir: str | Path):
+    def write_to_disk(self, output_dir: str | Path) -> None:
         """
         Write the trajectory to disk as a JSON file.
 

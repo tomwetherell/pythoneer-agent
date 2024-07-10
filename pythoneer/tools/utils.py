@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 
-def lint_code(code_string):
+def lint_code(code_string: str) -> list[str] | None:
     """
     Lint a code block using Ruff.
 
