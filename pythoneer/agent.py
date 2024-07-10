@@ -14,6 +14,7 @@ from pythoneer.trajectory import Trajectory, TrajectoryStep
 from pythoneer.llm import parse_tool_use_response
 from pythoneer.tools import register_all_tools, ToolFactory
 
+# Load the .env file - this is where your Anthropic API key should be stored.
 load_dotenv()
 
 
