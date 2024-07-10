@@ -22,7 +22,7 @@ class Agent:
         config_file: str | Path,
         codebase_path: str | Path,
         workspace_path: str | Path,
-    ):
+    ) -> None:
         """
         Initialise the agent.
 
@@ -72,8 +72,8 @@ class Agent:
         instance_message = InstanceMessage(self.instance_prompt)
         self.message_log.add_message(instance_message)
 
-    def _load_prompts(self):
-        """Load the prompts from the prompts file corresponding to the task."""
+    def _load_prompts(self) -> None:
+        """Load the prompts from the config file."""
         self.system_prompt = self.config["prompts"]["system_prompt"]
         self.instance_prompt = self.config["prompts"]["instance_prompt_template"].format(
             codebase_files_list=self.codebase.formatted_relative_file_paths()
@@ -83,18 +83,25 @@ class Agent:
         logger.info(f"📝 System prompt:\n{self.system_prompt}")
         logger.info(f"📝 Instance prompt:\n{self.instance_prompt}")
 
-    def run(self):
-        error = False
-        try:
-            while not self.task_completed:
-                self.step()
-        except Exception as exc:
-            logger.exception(f"An error occurred: {exc}")
-            error = True
-        finally:
-            self.finish(error)
+    def run(self) -> None:
+        """Run the agent."""
+        error_occured = False
 
-    def step(self):
+        while not self.task_completed:
+            try:
+                self.step()
+            except Exception as exc:
+                logger.exception(f"An error occurred: {exc}")
+                error_occured = True
+
+        self.finish(error_occured)
+
+    def step(self) -> None:
+        """
+        A single step of the agent.
+
+        The agent generates a message, uses a tool, and receives an observation.
+        """
         self.step_number += 1
 
         messages = self.message_log.return_messages_list(
@@ -124,7 +131,7 @@ class Agent:
 
         tool_instance = ToolFactory.create_tool(response.tool_name, **response.tool_arguments)
 
-        # Use the tool, and get the observation
+        # Use the tool, and get an observation
         observation = tool_instance.use(self)
 
         next_step_prompt = self.next_step_prompt_template.format(
@@ -149,6 +156,7 @@ class Agent:
         else:
             file_viewer_content = None
 
+        # Update the trajectory
         trajectory_step = TrajectoryStep(
             step_number=self.step_number,
             thought=response.thought,
@@ -163,8 +171,9 @@ class Agent:
         )
         self.trajectory.add_step(trajectory_step)
 
-    def finish(self, error: bool = False):
-        if error:
+    def finish(self, error_occured: bool = False) -> None:
+        """Write the codebase and trajectory to disk."""
+        if error_occured:
             logger.info("Task failed.")
         else:
             logger.info(f"Task completed in {self.step_number} steps.")
