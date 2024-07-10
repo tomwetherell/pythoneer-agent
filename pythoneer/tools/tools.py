@@ -86,7 +86,7 @@ class EditFileTool(Tool):
                 "The commit message is a short description of the changes you made to the file. "
                 "This should be detailed enough to allow other develoeprs to understand the changes "
                 "you made (without having to read the entire diff), but succinct enough to fit in a "
-                "a couple of sentences."  # TODO: Modify when review comments are added - message should make it clear that the commit addresses the review comment
+                "a couple of sentences."
             ),
         ),
         Parameter(
@@ -307,8 +307,11 @@ class RunPythonScriptTool(Tool):
             )
 
     def _use(self, agent: Agent) -> Observation:
-        """Run the Python script."""
-        # TODO: Add docstring explaining use of Docker.
+        """
+        Run the Python script.
+
+        The script is run in a Docker container with the specified environment.
+        """
         script_path = self.arguments["script_path"]
         script_arguments = self.arguments.get("script_arguments", "")
         environment = self.arguments["environment"]

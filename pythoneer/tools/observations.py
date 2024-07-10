@@ -1,9 +1,6 @@
 """Module containing classes to represent observations from tool use."""
 
 
-# TODO: Should this be a base class instead? Could have an observation type for each type of
-# tool. Then, the logic for summarising the observation could be in the observation subclass.
-# TODO: This could be a dataclass.
 class Observation:
     """Class to represent an observation from tool use."""
 
