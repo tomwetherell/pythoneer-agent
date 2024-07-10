@@ -93,6 +93,7 @@ class Agent:
             except Exception as exc:
                 logger.exception(f"An error occurred: {exc}")
                 error_occured = True
+                break
 
         self.finish(error_occured)
 
