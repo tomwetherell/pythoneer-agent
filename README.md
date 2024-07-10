@@ -19,6 +19,7 @@ Check out the [website](https://pythoneer.ai/) for some demos!
 * [Docker](https://docs.docker.com/) 🐋 - used by the agent to run Python scripts in isolated, pre-defined environments. See [Get Docker](https://docs.docker.com/get-docker/) for installation instructions.
 *  Run `docker-compose build` to build the required images.
 *  Create a `.env` file at the project root, and add an entry for your `ANTHROPIC_API_KEY`
+*  Create a virtual environment and run `pip install .` to install the package and the dependencies. 
 
 ### Running
 
