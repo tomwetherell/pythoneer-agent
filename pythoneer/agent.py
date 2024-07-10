@@ -5,6 +5,7 @@ import yaml
 from pathlib import Path
 
 import anthropic
+from dotenv import load_dotenv
 from loguru import logger
 
 from pythoneer.codebase import Codebase
@@ -12,6 +13,8 @@ from pythoneer.messages import MessageLog, InstanceMessage, AssistantMessage, Us
 from pythoneer.trajectory import Trajectory, TrajectoryStep
 from pythoneer.llm import parse_tool_use_response
 from pythoneer.tools import register_all_tools, ToolFactory
+
+load_dotenv()
 
 
 class Agent:
