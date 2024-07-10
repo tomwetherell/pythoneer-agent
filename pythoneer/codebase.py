@@ -12,7 +12,7 @@ class Codebase:
     PATTERNS = ["**/*.py", "**/*.toml"]
     """Patterns to match source files to include in the codebase."""
 
-    def __init__(self, codebase_path: str | Path):
+    def __init__(self, codebase_path: str | Path) -> None:
         """
         Initialise the Codebase object.
 
@@ -35,7 +35,7 @@ class Codebase:
                     file_contents = file_path.read_text()
                     self.add_file(str(relative_file_path), file_contents)
 
-    def add_file(self, relative_file_path: str, file_contents: str):
+    def add_file(self, relative_file_path: str, file_contents: str) -> None:
         """Add a new source file to the codebase."""
         source_file = SourceFile(relative_file_path, file_contents)
         self.files[relative_file_path] = source_file
@@ -44,7 +44,7 @@ class Codebase:
         """Retrieve a SourceFile object from the codebase."""
         return self.files[relative_file_path]
 
-    def edit_file(self, relative_file_path: str, contents: str):
+    def edit_file(self, relative_file_path: str, contents: str) -> None:
         """Edit the contents of a source file in the codebase."""
         self.files[relative_file_path].update_contents(contents)
 
@@ -59,7 +59,7 @@ class Codebase:
         """Return a list of all relative file paths in the codebase."""
         return list(self.files.keys())
 
-    def write_codebase_to_disk(self, output_path: str | Path):
+    def write_codebase_to_disk(self, output_path: str | Path) -> None:
         """
         Write the codebase to disk.
 
@@ -100,7 +100,7 @@ class SourceFile:
         self,
         relative_file_path: str,
         contents: str,
-    ):
+    ) -> None:
         """
         Initalise the SourceFile object.
 
@@ -118,21 +118,21 @@ class SourceFile:
         self.versions = []
         self.versions.append(contents)
 
-    def update_contents(self, contents: str):
+    def update_contents(self, contents: str) -> None:
         """Add a new version of the source file."""
         self.versions.append(contents)
 
     @property
-    def relative_file_path(self):
+    def relative_file_path(self) -> str:
         """The path of the source file relative to the root of the codebase."""
         return self._relative_file_path
 
     @property
-    def file_name(self):
+    def file_name(self) -> str:
         """The name of the source file."""
         return self._file_name
 
     @property
-    def contents(self):
+    def contents(self) -> str:
         """The contents of the latest version of the source file."""
         return self.versions[-1]
