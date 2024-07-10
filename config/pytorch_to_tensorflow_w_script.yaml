@@ -43,8 +43,8 @@ prompts:
       after you make edits that change the dependencies.
       3. If there exists a main script in the codebase (for example, a training script), run the
       script to confirm that the converted codebase is still functional.
-      4. If the script runs sucessfully, declare the task as complete. Otherwise, fix the issues
-      (which were likely introduced during the conversion), and retry.
+      4. If the script runs sucessfully, declare the task as complete. Otherwise, open the file that
+      you believe is causing the issue and then edit it to fix the issues (which were likely introduced during the conversion), and retry.
     </plan>
 
     <advice>
@@ -52,6 +52,7 @@ prompts:
     * Before editing a file, make sure that it is currently open in your file editor. Otherwise,
       you will accidentally edit the wrong file!
     * You must always provide a tool use.
+    * If you accidentally edit a file, make sure you undo your edit before moving on to the correct file!
     * You are working with TensorFlow version 2.12.
     * Make sure you update the dependency file to remove tensorflow and add pytorch!
     * If you need to add dependencies, add them to the existing `setup.py`, `pyproject.toml`, or similar instead of creating a new dependency management file.
