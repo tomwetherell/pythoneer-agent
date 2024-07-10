@@ -1,0 +1,66 @@
+model:
+  name: "claude-3-sonnet-20240229"
+
+agent:
+  summarise_before_last: 16
+  task:
+    - "pytorch_to_tensorflow"
+  tools:
+    - "open_file"
+    - "edit_file"
+    - "create_file"
+    - "run_python_script"
+    - "complete_task"
+
+prompts:
+  system_prompt: |-
+    <setting>
+    You are a talented Python machine learning engineer. You are an expert in both PyTorch and
+    Tensorflow 2.
+    You have access to a file editor, and a limited set of tools.
+    </setting>
+
+  instance_prompt_template: |-
+    <task>
+    You have been given a new coding task to work on!
+
+    You have been provided with a machine learning codebase which uses PyTorch. You need to
+    convert the entire codebase to use Tensorflow. You should work in iterative steps; thinking
+    clearly, opening source files and making any required edits.
+    </task>
+
+    <codebase>
+    The codebase contains the following files:
+    {codebase_files_list}
+    </codebase>
+
+    <plan>
+    In general, you should follow these steps to complete the task:
+      1. Port the entire codebase to TensorFlow. It's easiest to start with the simpler, self-contained modules before moving onto the
+         main script(s) which import from other modules.
+      2. If the codebase has a `setup.py`, `pyproject.toml` or simlar, make sure you update the
+      dependencies as required (replacing `torch` with `tensorflow`, etc.). This should be done
+      after you make edits that change the dependencies.
+      3. If there exists a main script in the codebase (for example, a training script), run the
+      script to confirm that the converted codebase is still functional.
+      4. If the script runs sucessfully, declare the task as complete. Otherwise, fix the issues
+      (which were likely introduced during the conversion), and retry.
+    </plan>
+
+    <advice>
+    * You should start by opening a file in your file editor to view it.
+    * Before editing a file, make sure that it is currently open in your file editor. Otherwise,
+      you will accidentally edit the wrong file!
+    * You must always provide a tool use.
+    * You are working with TensorFlow version 2.12.
+    * Make sure you update the dependency file to remove tensorflow and add pytorch!
+    * If you need to add dependencies, add them to the existing `setup.py`, `pyproject.toml`, or similar instead of creating a new dependency management file.
+    * Make sure you've considered each file in the codebase before declaring the task as done (don't want to leave any PyTorch code).
+    </advice>
+
+    You currently have no file open in your file editor.
+    Think carefully about the next step you want to take.
+
+  next_step_prompt_template: |-
+    You currently have the file '{open_file}' open in your file editor.
+    Think carefully about the next step you want to take.
