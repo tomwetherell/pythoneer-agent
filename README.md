@@ -1,12 +1,16 @@
 # Pythoneer AI Agent 
 
-Agentic developer tools for codebase-wide changes. For example, porting a Python 2 codebase to Python 3, converting TensorFlow to PyTorch (and vice versa), etc. 
+Pythoneer AI is a tool to help developers make codebase-wide changes to their Python projects - giving them more time to focus on more enjoyable and rewarding problems.
+
+The agent is provided with a codebase and a task, and takes iterative steps to complete it. Through the use of tools, the agent is able to open, edit and create files, and run tests and python scripts.
 
 ### Capabilities
 
 * Porting Python 2 to Python 3
 * Converting PyTorch codebases to TensorFlow
-* Converting TensorFlow codebases to PyTorch 
+* Converting TensorFlow codebases to PyTorch
+
+Check out the [website](https://pythoneer.ai/) for some demos!
 
 ## Getting Started 
 
