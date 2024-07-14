@@ -16,11 +16,23 @@ Check out the [website](https://pythoneer.ai/) for some demos!
 
 ### Prerequisites 
 
-* [Docker](https://docs.docker.com/) 🐋 - used by the agent to run Python scripts in isolated, pre-defined environments. See [Get Docker](https://docs.docker.com/get-docker/) for installation instructions.
+* Install [Docker](https://docs.docker.com/) 🐋. Docker is used by the agent to run Python scripts in isolated, pre-defined environments. See [Get Docker](https://docs.docker.com/get-docker/) for installation instructions.
 *  Run `docker-compose build` to build the required images.
-*  Create a `.env` file at the project root, and add an entry for your `ANTHROPIC_API_KEY`
+*  Create a `.env` file at the project root, and add an entry for your `ANTHROPIC_API_KEY`. 
 *  Create a virtual environment and run `pip install .` to install the package and the dependencies. 
 
-### Running
+### Use
 
-* Run `run.py`, with arguments for your config file, codebase path and workspace path. 
+* Create a config file, or use one of the existing configs in `/config`. The config file defines the task, and the tools that the agent has access to. 
+* Run the agent:
+
+```
+export CONFIG_FILE=<path to config file>
+export CODEBASE_PATH=<path to codebase to edit>
+export WORKSPACE_PATH=<path to directory to save outputs to>
+
+run.py \
+--config_file $CONFIG_FILE \
+--codebase_path $CODEBASE_PATH \
+--workspace_path $WORKSPACE_PATH
+```
