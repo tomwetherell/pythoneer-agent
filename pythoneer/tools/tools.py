@@ -11,7 +11,7 @@ from pathlib import Path
 
 from pythoneer.tools.observations import Observation
 from pythoneer.tools.base import Tool, Parameter
-from pythoneer.tools.utils import lint_code
+from pythoneer.tools.utils import retrieve_file_identifier, lint_code, remove_code_block_tags
 
 
 if TYPE_CHECKING:
@@ -51,11 +51,13 @@ class OpenFileTool(Tool):
         file_path = self.arguments["file_path"]
         agent.open_file_relative_path = file_path
 
+        file_identifier = retrieve_file_identifier(file_path)
+
         file_contents = agent.codebase.retrieve_file(file_path).contents
 
         observation_description = (
             f"Opened the file '{file_path}'. "
-            f"Contents of {file_path}: \n```python\n{file_contents}\n```"
+            f"Contents of {file_path}: \n```{file_identifier}\n{file_contents}\n```"
         )
 
         summarised_observation_description = f"Opened the file '{file_path}'"
@@ -109,20 +111,15 @@ class EditFileTool(Tool):
         new_contents = self.arguments["new_file_contents"]
         file_path = agent.open_file_relative_path
 
-        if new_contents.startswith("```"):
-            # Remove up until and including the newline after the first ```
-            new_contents = new_contents[new_contents.find("\n") + 1 :]
-        if new_contents.endswith("```"):
-            new_contents = new_contents[:-3]
-        new_contents = new_contents.lstrip()
+        file_identifier = retrieve_file_identifier(file_path)
+
+        new_contents = remove_code_block_tags(new_contents)
 
         agent.codebase.edit_file(file_path, new_contents)
 
-        if file_path.endswith(".py"):
-            python_file = True
+        if file_identifier == "python":
             lint_results = lint_code(new_contents)
         else:
-            python_file = False
             lint_results = None
 
         # If there were linting issues, provide a review comment
@@ -137,7 +134,7 @@ class EditFileTool(Tool):
 
         observation_description = (
             f"Edited the file '{file_path}'.\nCommit message: '{commit_message}'.\n"
-            f"New contents of {file_path}:\n```{'python' if python_file else ''}\n{new_contents}\n```"
+            f"New contents of {file_path}:\n```{file_identifier}\n{new_contents}\n```"
         )
 
         summarised_observation_description = (
@@ -194,23 +191,18 @@ class CreateFileTool(Tool):
         file_path = self.arguments["file_path"]
         file_contents = self.arguments["file_contents"]
 
-        if file_contents.startswith("```"):
-            # Remove up until and including the newline after the first ```
-            file_contents = file_contents[file_contents.find("\n") + 1 :]
-        if file_contents.endswith("```"):
-            file_contents = file_contents[:-3]
-        file_contents = file_contents.lstrip()
+        file_contents = remove_code_block_tags(file_contents)
 
         agent.codebase.add_file(file_path, file_contents)
 
         # Open the new file in the file editor
         agent.open_file_relative_path = file_path
 
-        if file_path.endswith(".py"):
-            python_file = True
+        file_identifier = retrieve_file_identifier(file_path)
+
+        if file_identifier == "python":
             lint_results = lint_code(file_contents)
         else:
-            python_file = False
             lint_results = None
 
         # If there were linting issues, provide a review comment
@@ -226,7 +218,7 @@ class CreateFileTool(Tool):
         observation_description = (
             f"Created a new file '{file_path}', and opened it in the file editor.\n"
             f"The codebase now contains the following files:\n{agent.codebase.formatted_relative_file_paths()}\n\n"
-            f"Contents of {file_path}:\n```{'python' if python_file else ''}\n{file_contents}\n```"
+            f"Contents of {file_path}:\n```{file_identifier}\n{file_contents}\n```"
         )
 
         summarised_observation_description = f"Created a new file '{file_path}'"
@@ -431,7 +423,7 @@ class RunPythonScriptTool(Tool):
 
 
 class RunAllTestsTool(Tool):
-    """Tool to run all tests in the codebase."""
+    """Tool to run all pytest tests in the codebase."""
 
     NAME = "run_all_tests"
     DESCRIPTION = "Run all tests in the codebase."
